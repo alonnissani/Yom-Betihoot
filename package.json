@@ -5,24 +5,22 @@
   "type": "module",
   "description": "מ־0 ל־100 — RAMON SAFETY DAY 2026 interactive scenario",
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,magenta \"node server/index.js\" \"vite\"",
+    "dev": "concurrently -n vite,worker -c magenta,blue \"vite\" \"wrangler dev --port 3000\"",
     "build": "vite build",
-    "start": "node server/index.js",
-    "serve": "npm run build && node server/index.js"
+    "start": "npm run build && wrangler dev --port 3000",
+    "deploy": "npm run build && wrangler deploy",
+    "test": "node tests/engine.test.mjs && node tests/flow.test.mjs"
   },
   "dependencies": {
-    "express": "^4.21.2",
     "framer-motion": "^11.15.0",
-    "nanoid": "^5.0.9",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
     "playwright": "^1.62.1",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "wrangler": "^4.124.0"
   }
 }

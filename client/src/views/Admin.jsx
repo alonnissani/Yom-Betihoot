@@ -88,6 +88,8 @@ export default function Admin() {
   else if (qRevealed) primary = { label: '←  המשך', action: () => cmd('advance'), disabled: false };
   else if (atEnd) primary = { label: 'התרחיש הסתיים', action: () => {}, disabled: true };
 
+  const openLive = () => window.open('/live', '_blank', 'noopener');
+
   const openReport = () => {
     const key = sessionStorage.getItem(KEY_STORE) || '';
     window.open(`/report?key=${encodeURIComponent(key)}`, '_blank', 'noopener');
@@ -131,6 +133,9 @@ export default function Admin() {
           )}
           {state.status === 'lobby' && <span className="a-chip">קוד <b className="tech">{state.code}</b></span>}
         </div>
+        <button className="btn btn-ghost a-screen-btn" onClick={openLive}>
+          <span aria-hidden="true">🖥</span> פתח מסך הקרנה
+        </button>
         <div className="a-menu-wrap">
           <button className="btn btn-ghost a-menu-btn" onClick={() => setMenu((v) => !v)} aria-label="תפריט">⋯</button>
           <AnimatePresence>
@@ -165,6 +170,9 @@ export default function Admin() {
               <div className="a-count-n tech">{state.participants}</div>
               <div className="a-count-l">משתתפים מחוברים</div>
             </div>
+            <button className="btn a-lobby-live" onClick={openLive}>
+              <span aria-hidden="true">🖥</span> פתח מסך הקרנה בטאב חדש
+            </button>
             <p className="a-lobby-note">
               {rehearsal
                 ? 'מצב חזרה: עם הלחיצה ייווצרו 20 משתתפי דמה שיענו לבד. נתוני החזרה מופרדים לחלוטין.'

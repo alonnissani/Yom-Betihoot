@@ -324,6 +324,9 @@
 }
 .a-chip b { color: var(--text); font-size: 14px; }
 
+.a-screen-btn { padding: 7px 14px; font-size: 13px; white-space: nowrap; }
+.a-lobby-live { padding: 12px 22px; font-size: 14.5px; }
+
 .a-menu-wrap { position: relative; }
 .a-menu-btn { padding: 6px 14px; font-size: 20px; line-height: 1; }
 .a-menu {

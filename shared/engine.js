@@ -1,11 +1,18 @@
-import { customAlphabet } from 'nanoid';
 import {
   FLOW, QUESTIONS, QUESTION_BY_ID, LOAD_TRACK, STAGES,
   SESSION_LABEL, stageNumberOf,
-} from '../shared/scenario.js';
+} from './scenario.js';
 
-const nid = customAlphabet('abcdefghijkmnpqrstuvwxyz23456789', 16);
-const codeGen = customAlphabet('ACDEFGHJKLMNPQRTUVWXY3479', 4);
+/** מזהים אקראיים מעל Web Crypto — עובד גם ב־Workers וגם ב־Node. */
+function randomId(alphabet, length) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < length; i += 1) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+const nid = () => randomId('abcdefghijkmnpqrstuvwxyz23456789', 16);
+const codeGen = () => randomId('ACDEFGHJKLMNPQRTUVWXY3479', 4);
 
 const OVERLAY_TTL = { phone: 12000, birds: 13000 };
 const MAYDAY_IMPACT_MS = 6000;
@@ -321,6 +328,24 @@ export class Engine {
     return this.exportRecord();
   }
 
+  /** מצב מלא לשחזור אחרי הפעלה מחדש של ה־Durable Object. */
+  serialize() {
+    return { sessions: this.sessions, active: this.active };
+  }
+
+  restore(snapshot) {
+    if (!snapshot?.sessions?.live || !snapshot?.sessions?.rehearsal) return false;
+    this.sessions = snapshot.sessions;
+    this.active = snapshot.active === 'rehearsal' ? 'rehearsal' : 'live';
+    // טיימרים אינם שורדים הפעלה מחדש; שכבות זמניות מנוקות כדי לא להיתקע על המסך.
+    for (const sess of Object.values(this.sessions)) {
+      sess.board.overlays = (sess.board.overlays || []).filter((o) => o.kind === 'mayday');
+      for (const o of sess.board.overlays) o.phase = 'banner';
+      for (const p of Object.values(sess.participants)) p.connected = false;
+    }
+    return true;
+  }
+
   // ── חזרה: משתתפי דמה ───────────────────────────────────────────────────────
 
   spawnBots(n = 20) {
@@ -335,7 +360,6 @@ export class Engine {
           base: 1 + Math.random() * 2,
           knee: 1.5 + Math.random() * 3.5,     // השלב שבו מתחילה העלייה
           slope: 0.9 + Math.random() * 1.6,
-          jitter: () => (Math.random() - 0.5) * 1.4,
         },
       };
     }
@@ -363,7 +387,8 @@ export class Engine {
       if (def.track === 'shift') {
         return clamp(Math.round(4 + Math.random() * 6), 1, 10);
       }
-      const raw = pr.base + Math.max(0, stageIdx - pr.knee) * pr.slope + pr.jitter();
+      const jitter = (Math.random() - 0.5) * 1.4;
+      const raw = pr.base + Math.max(0, stageIdx - pr.knee) * pr.slope + jitter;
       return clamp(Math.round(raw), 1, 10);
     }
     if (def.kind === 'timeline') {

@@ -1,7 +1,9 @@
-import { io } from 'socket.io-client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-export const socket = io({ autoConnect: true, transports: ['websocket', 'polling'] });
+/**
+ * חיבור זמן־אמת מעל WebSocket מקורי (Cloudflare Durable Object).
+ * מתחבר מחדש לבד, משדר hello בכל חיבור, וממפה בקשה→תשובה לפי rid.
+ */
 
 const TOKEN_KEY = 'z2h.participant';
 
@@ -15,41 +17,136 @@ export function clearToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
 }
 
-/** מנוי על מצב השרת עבור תפקיד מסוים. hello נשלח מחדש בכל reconnect. */
+function wsURL() {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}/ws`;
+}
+
+class Connection {
+  constructor() {
+    this.ws = null;
+    this.rid = 0;
+    this.waiting = new Map();
+    this.stateHandlers = new Set();
+    this.statusHandlers = new Set();
+    this.hello = null;
+    this.retry = 0;
+    this.closed = false;
+    this.connect();
+    // חיבור שנרדם ברקע בטלפון מתעורר מיד עם החזרה למסך
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.ws?.readyState !== WebSocket.OPEN) this.connect();
+    });
+    window.addEventListener('online', () => this.connect());
+  }
+
+  connect() {
+    if (this.closed) return;
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+    clearTimeout(this.retryTimer);
+
+    let ws;
+    try { ws = new WebSocket(wsURL()); } catch { return this.scheduleRetry(); }
+    this.ws = ws;
+
+    ws.onopen = () => {
+      this.retry = 0;
+      this.emitStatus(true);
+      if (this.hello) this.send({ t: 'hello', ...this.hello });
+      this.keepAlive = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'ping' }));
+      }, 25000);
+    };
+
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.t === 'state') {
+        for (const h of this.stateHandlers) h(msg.state);
+      } else if (msg.t === 'ack' && this.waiting.has(msg.rid)) {
+        const { resolve, timer } = this.waiting.get(msg.rid);
+        clearTimeout(timer);
+        this.waiting.delete(msg.rid);
+        const { t, rid, ...rest } = msg;
+        resolve(rest);
+      }
+    };
+
+    const down = () => {
+      clearInterval(this.keepAlive);
+      this.emitStatus(false);
+      this.scheduleRetry();
+    };
+    ws.onclose = down;
+    ws.onerror = () => { try { ws.close(); } catch { /* ignore */ } };
+    return undefined;
+  }
+
+  scheduleRetry() {
+    if (this.closed) return;
+    this.retry = Math.min(this.retry + 1, 6);
+    const delay = Math.min(400 * 2 ** (this.retry - 1), 5000);
+    clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => this.connect(), delay);
+  }
+
+  emitStatus(up) { for (const h of this.statusHandlers) h(up); }
+
+  setHello(payload) {
+    this.hello = payload;
+    if (this.ws?.readyState === WebSocket.OPEN) this.send({ t: 'hello', ...payload });
+  }
+
+  send(obj) {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify(obj));
+    return true;
+  }
+
+  request(obj, timeoutMs = 8000) {
+    return new Promise((resolve) => {
+      const rid = ++this.rid;
+      const timer = setTimeout(() => {
+        this.waiting.delete(rid);
+        resolve({ ok: false, reason: 'timeout' });
+      }, timeoutMs);
+      this.waiting.set(rid, { resolve, timer });
+      if (!this.send({ ...obj, rid })) {
+        clearTimeout(timer);
+        this.waiting.delete(rid);
+        resolve({ ok: false, reason: 'offline' });
+      }
+    });
+  }
+
+  onState(fn) { this.stateHandlers.add(fn); return () => this.stateHandlers.delete(fn); }
+  onStatus(fn) { this.statusHandlers.add(fn); return () => this.statusHandlers.delete(fn); }
+  get connected() { return this.ws?.readyState === WebSocket.OPEN; }
+}
+
+export const connection = new Connection();
+
+/** מנוי על מצב השרת עבור תפקיד מסוים. */
 export function useServerState(role, helloPayload = {}) {
   const [state, setState] = useState(null);
-  const [connected, setConnected] = useState(socket.connected);
+  const [connected, setConnected] = useState(connection.connected);
   const payloadRef = useRef(helloPayload);
   payloadRef.current = helloPayload;
 
   useEffect(() => {
-    const onState = (s) => setState(s);
-    const onConnect = () => {
-      setConnected(true);
-      if (role) socket.emit('hello', { role, ...payloadRef.current });
-    };
-    const onDisconnect = () => setConnected(false);
-
-    socket.on('state', onState);
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    if (socket.connected && role) socket.emit('hello', { role, ...payloadRef.current });
-
-    return () => {
-      socket.off('state', onState);
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-    };
+    const offState = connection.onState(setState);
+    const offStatus = connection.onStatus(setConnected);
+    if (role) connection.setHello({ role, ...payloadRef.current });
+    return () => { offState(); offStatus(); };
   }, [role]);
 
   return { state, connected, setState };
 }
 
-export function emit(event, payload) {
-  return new Promise((resolve) => {
-    socket.timeout(6000).emit(event, payload, (err, res) => {
-      if (err) resolve({ ok: false, reason: 'timeout' });
-      else resolve(res || { ok: false, reason: 'no-response' });
-    });
-  });
+export function emit(event, payload = {}) {
+  if (event === 'join') return connection.request({ t: 'join', ...payload });
+  if (event === 'submit') return connection.request({ t: 'submit', ...payload });
+  if (event === 'admin:auth') return connection.request({ t: 'adminAuth', ...payload });
+  if (event === 'admin:cmd') return connection.request({ t: 'adminCmd', ...payload });
+  return Promise.resolve({ ok: false, reason: 'unknown-event' });
 }

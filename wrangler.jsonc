@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ramon-zero-to-hundred",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+
+  // אפליקציה אחת, deployment אחד: הממשק הסטטי והזמן־אמת חיים יחד.
+  // כל נתיב שאינו קובץ מוגש כ־index.html, כך ש-/admin, /live ו-/report
+  // הם routes פנימיים של אותה אפליקציה.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/ws", "/api/*"]
+  },
+
+  "durable_objects": {
+    "bindings": [{ "name": "SESSION_ROOM", "class_name": "SessionRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SessionRoom"] }],
+
+  "observability": { "enabled": true }
+}
