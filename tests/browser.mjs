@@ -7,7 +7,7 @@ let fails = 0;
 const check = (n, c, e = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${e ? ' :: ' + e : ''}`); if (!c) fails++; };
 
 const admin = await connect(APP);
-await admin.call('adminAuth', { key: 'testkey' });
+await admin.call('adminAuth', { key: process.env.ADMIN_KEY || 'testkey' });
 await wait(200);
 if (admin.state.mode !== 'live') await admin.call('adminCmd', { type: 'setMode', payload: { mode: 'live' } });
 await wait(150);
@@ -15,7 +15,8 @@ await admin.call('adminCmd', { type: 'resetSession' });
 await wait(250);
 const code = admin.state.code;
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy });
 const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'he-IL' });
 const desk = await browser.newContext({ viewport: { width: 1600, height: 900 }, locale: 'he-IL' });
 const errors = [];
@@ -35,7 +36,7 @@ await p.screenshot({ path: `${OUT}/cf-waiting.png` });
 const adm = await desk.newPage();
 adm.on('console', (m) => { if (m.type() === 'error') errors.push(`admin: ${m.text()}`); });
 await adm.goto(`${APP}/admin`, { waitUntil: 'networkidle' });
-await adm.fill('#k', 'testkey');
+await adm.fill('#k', process.env.ADMIN_KEY || 'testkey');
 await adm.click('.gate-form button');
 await wait(700);
 check('Admin נפתח', await adm.locator('.a-code').isVisible());

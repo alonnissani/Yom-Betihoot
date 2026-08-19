@@ -41,6 +41,12 @@ npm run dev            # Vite על 5173 + Worker על 3000
 
 ## פריסה
 
+האפליקציה פרוסה בכתובת:
+
+**https://ramon-zero-to-hundred.alon3005nissani.workers.dev**
+
+לפריסה מחדש:
+
 ```bash
 npx wrangler login                              # פעם אחת
 npx wrangler secret put ADMIN_KEY               # מפתח הכניסה למסך המנחה
@@ -146,6 +152,16 @@ node tests/browser.mjs       # דפדפן אמיתי: כניסה, שאלה, רע
 ```
 
 הבדיקות רצות מול ה־Worker האמיתי (workerd), לא מול מימוש מדומה.
+
+אפשר להריץ את אותן בדיקות מול ה־deployment החי:
+
+```bash
+APP=https://ramon-zero-to-hundred.alon3005nissani.workers.dev \
+ADMIN_KEY=<המפתח> node tests/engine.test.mjs
+```
+
+`tests/bridge.mjs` מגשר את ה־deployment החי ל־localhost (כולל WebSocket),
+לשימוש בסביבות שבהן לדפדפן אין יציאה ישירה לאינטרנט.
 
 ## הערה על real-time
 

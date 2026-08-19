@@ -12,7 +12,8 @@ function randomId(alphabet, length) {
   return out;
 }
 const nid = () => randomId('abcdefghijkmnpqrstuvwxyz23456789', 16);
-const codeGen = () => randomId('ACDEFGHJKLMNPQRTUVWXY3479', 4);
+// ללא תנועות ובלי תווים דומים — קוד קריא בקול, שלא יכול להצטרף למילה
+const codeGen = () => randomId('CDFGHJKLMNPQRTVWXY3479', 4);
 
 const OVERLAY_TTL = { phone: 12000, birds: 13000 };
 const MAYDAY_IMPACT_MS = 6000;
