@@ -8,7 +8,7 @@
 .p-board { min-height: 0; overflow: hidden; }
 
 .conn-bar {
-  position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 60;
+  position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 60;
   background: rgba(255, 196, 107, 0.16);
   border-bottom: 1px solid rgba(255, 196, 107, 0.4);
   color: #FFDCA8; font-size: 12.5px; text-align: center; padding: 5px 12px;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * חיבור זמן־אמת מעל WebSocket מקורי (Cloudflare Durable Object).
@@ -130,15 +130,23 @@ export const connection = new Connection();
 export function useServerState(role, helloPayload = {}) {
   const [state, setState] = useState(null);
   const [connected, setConnected] = useState(connection.connected);
-  const payloadRef = useRef(helloPayload);
-  payloadRef.current = helloPayload;
+  const { token, sessionId } = helloPayload;
 
   useEffect(() => {
+    // ה־open עשוי היה לקרות עוד לפני שהרכיב עלה — מסנכרנים כדי לא להציג
+    // "אין חיבור" על חיבור תקין.
+    setConnected(connection.connected);
     const offState = connection.onState(setState);
     const offStatus = connection.onStatus(setConnected);
-    if (role) connection.setHello({ role, ...payloadRef.current });
     return () => { offState(); offStatus(); };
-  }, [role]);
+  }, []);
+
+  // ה־hello חייב להתעדכן ברגע שהמשתתף מקבל מזהה, אחרת חיבור מחדש
+  // (טלפון שנרדם, מעבר בין רשתות) יישלח בלי הזיהוי והמשתתף ייזרק
+  // חזרה למסך הקוד — ואחרי נעילת הלובי הוא לא יוכל לחזור.
+  useEffect(() => {
+    if (role) connection.setHello({ role, token, sessionId });
+  }, [role, token, sessionId]);
 
   return { state, connected, setState };
 }

@@ -4,9 +4,9 @@
 //  ניתן לערוך כאן טקסטים, סוגי מטוסים והערות מנחה מבלי לגעת בשאר המערכת.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const ACTIVITY_TITLE = 'מ־0 ל־100';
+export const ACTIVITY_TITLE = 'מ0 ל100';
 export const EVENT_TITLE = 'RAMON SAFETY DAY 2026';
-export const SESSION_LABEL = 'מ־0 ל־100 – Safety Day 2026';
+export const SESSION_LABEL = 'מ0 ל100 – Safety Day 2026';
 
 /** ששת שלבי התרחיש – משמשים גם כציר ה־X בגרף העומס וגם ב־Timeline הסופי. */
 export const STAGES = [

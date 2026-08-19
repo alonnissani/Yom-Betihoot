@@ -21,7 +21,14 @@ const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, 
 const desk = await browser.newContext({ viewport: { width: 1600, height: 900 }, locale: 'he-IL' });
 const errors = [];
 
+const helloFrames = [];
 const p = await phone.newPage();
+p.on('websocket', (ws) => {
+  ws.on('framesent', (f) => {
+    const body = String(f.payload || '');
+    if (body.includes('"hello"')) helloFrames.push(body);
+  });
+});
 p.on('console', (m) => { if (m.type() === 'error') errors.push(`participant: ${m.text()}`); });
 await p.goto(APP, { waitUntil: 'networkidle' });
 await wait(1200);
@@ -31,6 +38,7 @@ await p.fill('#code', code);
 await p.click('button[type=submit]');
 await wait(900);
 check('כניסה עם קוד עובדת', await p.locator('.waiting-title').isVisible());
+check('לא מוצג "אין חיבור" על חיבור תקין', (await p.locator('.conn-bar').count()) === 0);
 await p.screenshot({ path: `${OUT}/cf-waiting.png` });
 
 const adm = await desk.newPage();
@@ -68,6 +76,13 @@ await p.screenshot({ path: `${OUT}/cf-answered.png` });
 
 await wait(400);
 check('מונה המשיבים במסך ההקרנה', (await liveTab.locator('.vote-n').textContent())?.trim() === '1');
+
+// אחרי ההצטרפות הלקוח חייב לרענן את ה־hello עם הזיהוי. בלי זה כל חיבור
+// מחדש (טלפון שנרדם, מעבר רשת) יישלח בלי זיהוי, המשתתף ייזרק למסך הקוד
+// ולא יוכל לחזור כי הלובי כבר נעול.
+const identified = helloFrames.filter((f) => f.includes('"token"'));
+check('ה־hello מתעדכן עם הזיהוי אחרי הצטרפות', identified.length > 0,
+  `${helloFrames.length} hello frames, ${identified.length} with token`);
 
 await p.reload({ waitUntil: 'networkidle' });
 await wait(1500);

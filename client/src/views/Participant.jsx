@@ -14,9 +14,10 @@ const JOIN_ERRORS = {
 
 /* ─── מסך הכניסה הממותג ──────────────────────────────────────────────────── */
 
-function EntryShell({ children }) {
+function EntryShell({ children, disconnected = false }) {
   return (
     <div className="entry">
+      {disconnected && <div className="conn-bar">אין חיבור — מתחברים מחדש…</div>}
       <TowerScene />
       <header className="entry-top">
         <div className="entry-event">{EVENT_TITLE}</div>
@@ -135,8 +136,8 @@ export default function Participant() {
     return <EntryShell><div className="waiting"><div className="waiting-dots"><i /><i /><i /></div></div></EntryShell>;
   }
 
-  if (!state.joined) return <EntryShell><JoinForm onJoin={join} /></EntryShell>;
-  if (state.status === 'lobby') return <EntryShell><Waiting /></EntryShell>;
+  if (!state.joined) return <EntryShell disconnected={!connected}><JoinForm onJoin={join} /></EntryShell>;
+  if (state.status === 'lobby') return <EntryShell disconnected={!connected}><Waiting /></EntryShell>;
   if (state.status === 'ended' && state.reveal === 'closing') return <Closing />;
 
   const stage = STAGES.find((s) => s.n === state.stageNumber);
