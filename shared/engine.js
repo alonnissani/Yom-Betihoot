@@ -1,6 +1,6 @@
 import {
   FLOW, QUESTIONS, QUESTION_BY_ID, LOAD_TRACK, STAGES,
-  SESSION_LABEL, stageNumberOf,
+  SESSION_LABEL, JOIN_CODE, stageNumberOf,
 } from './scenario.js';
 
 /** מזהים אקראיים מעל Web Crypto — עובד גם ב־Workers וגם ב־Node. */
@@ -12,8 +12,6 @@ function randomId(alphabet, length) {
   return out;
 }
 const nid = () => randomId('abcdefghijkmnpqrstuvwxyz23456789', 16);
-// ללא תנועות ובלי תווים דומים — קוד קריא בקול, שלא יכול להצטרף למילה
-const codeGen = () => randomId('CDFGHJKLMNPQRTVWXY3479', 4);
 
 const OVERLAY_TTL = { phone: 12000, birds: 13000 };
 const MAYDAY_IMPACT_MS = 6000;
@@ -25,7 +23,7 @@ export function createSession(mode = 'live') {
     id: `${new Date().toISOString().slice(0, 10)}-${nid().slice(0, 6)}`,
     label: SESSION_LABEL,
     mode,                       // 'live' | 'rehearsal'
-    code: codeGen(),
+    code: JOIN_CODE,
     status: 'lobby',            // 'lobby' | 'running' | 'ended'
     cursor: -1,
     createdAt: Date.now(),
@@ -173,13 +171,6 @@ export class Engine {
     s.startedAt = Date.now();
     if (s.mode === 'rehearsal') this.spawnBots();
     this.advance();
-  }
-
-  regenerateCode() {
-    const s = this.s;
-    if (s.status !== 'lobby') return;
-    s.code = codeGen();
-    this.changed();
   }
 
   /** האם הכפתור הראשי פעיל כרגע (אין שאלה פתוחה/סגורה שמחכה להחלטה). */

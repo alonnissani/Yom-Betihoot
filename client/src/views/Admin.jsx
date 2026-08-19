@@ -164,7 +164,6 @@ export default function Admin() {
             <div className="a-lobby-code">
               <div className="eyebrow">קוד פעילות</div>
               <div className="a-code tech">{state.code}</div>
-              <button className="btn btn-ghost a-code-new" onClick={() => cmd('regenerateCode')}>קוד חדש</button>
             </div>
             <div className="a-lobby-count">
               <div className="a-count-n tech">{state.participants}</div>

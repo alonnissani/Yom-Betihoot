@@ -4,7 +4,10 @@ import TowerScene from '../components/TowerScene.jsx';
 import Board from '../components/Board.jsx';
 import QuestionSheet from '../components/Question.jsx';
 import { useServerState, emit, readToken, writeToken, clearToken } from '../lib/socket.js';
-import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY } from '@shared/scenario.js';
+import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY, JOIN_CODE } from '@shared/scenario.js';
+
+/** קוד ספרתי -> מקלדת מספרים בטלפון. נגזר מהקוד עצמו כדי שיישאר נכון אם ישתנה. */
+const NUMERIC_CODE = /^\d+$/.test(JOIN_CODE);
 
 const JOIN_ERRORS = {
   'bad-code': 'קוד פעילות שגוי. בדוק את הקוד שעל המסך.',
@@ -56,7 +59,8 @@ function JoinForm({ onJoin }) {
       <form className="entry-form" onSubmit={submit}>
         <label className="entry-label" htmlFor="code">קוד פעילות</label>
         <input id="code" className="field entry-code tech" value={code} autoComplete="off"
-          inputMode="text" autoCapitalize="characters" spellCheck="false" maxLength={8}
+          inputMode={NUMERIC_CODE ? 'numeric' : 'text'}
+          autoCapitalize="characters" spellCheck="false" maxLength={8}
           onChange={(e) => setCode(e.target.value.toUpperCase())} />
         <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy || !code.trim()}>
           {busy ? 'מתחבר…' : 'כניסה לפעילות'}

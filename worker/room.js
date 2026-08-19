@@ -22,7 +22,7 @@ export class SessionRoom extends DurableObject {
     });
   }
 
-  get adminKey() { return this.env.ADMIN_KEY || 'ramon2026'; }
+  get adminKey() { return this.env.ADMIN_KEY || '00000'; }
 
   // ─── שידור ─────────────────────────────────────────────────────────────────
 
@@ -177,7 +177,6 @@ export class SessionRoom extends DurableObject {
       case 'revealQuestion': return e.revealQuestion();
       case 'hideReveal': return e.hideQuestionReveal();
       case 'back': return e.back();
-      case 'regenerateCode': return e.regenerateCode();
       case 'setMode': return e.setMode(payload?.mode);
       case 'resetSession': return e.resetSession();
       case 'endSession': {
