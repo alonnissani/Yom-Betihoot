@@ -103,7 +103,7 @@ function Closing() {
   return (
     <div className="closing closing-participant">
       {REVEAL_COPY.closing.map((line, i) => (
-        <motion.div key={line} className="closing-line"
+        <motion.div key={line} className={`closing-line${i === REVEAL_COPY.closing.length - 1 ? ' last' : ''}`}
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 + i * 0.5, duration: 0.75 }}>{line}</motion.div>
       ))}

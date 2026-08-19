@@ -85,7 +85,7 @@ export default function Live() {
     return (
       <div className="closing">
         {REVEAL_COPY.closing.map((line, i) => (
-          <motion.div key={line} className="closing-line"
+          <motion.div key={line} className={`closing-line${i === REVEAL_COPY.closing.length - 1 ? ' last' : ''}`}
             initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 + i * 0.7, duration: 0.9 }}>{line}</motion.div>
         ))}
@@ -130,7 +130,13 @@ export default function Live() {
       <div className="live-stage">
         <LiveBrand />
         <div className="live-reveal">
-          <h2 className="live-reveal-title">מסלולי העומס לאורך התרחיש</h2>
+          <AnimatePresence mode="wait">
+            <motion.h2 key={state.reveal} className={`live-reveal-title${REVEAL_COPY[state.reveal] ? ' message' : ''}`}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.55 }}>
+              {REVEAL_COPY[state.reveal] || 'מסלולי העומס לאורך התרחיש'}
+            </motion.h2>
+          </AnimatePresence>
           <div className="live-reveal-body">
             <TrajectoryChart trajectories={state.trajectories || []} phase={state.reveal} />
           </div>

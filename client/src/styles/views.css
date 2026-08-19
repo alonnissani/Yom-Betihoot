@@ -179,7 +179,7 @@
   font-size: clamp(30px, 8vw, 78px); font-weight: 300; letter-spacing: -0.01em; line-height: 1.16;
   color: var(--text);
 }
-.closing-line:last-child { font-weight: 900; color: #fff; }
+.closing-line.last { font-weight: 900; color: #fff; }
 .closing-participant .closing-line { font-size: clamp(26px, 8vw, 44px); }
 
 /* ═══ מסך ההקרנה (Live) ═══════════════════════════════════════════════════ */
@@ -227,7 +227,7 @@
 .live-veil {
   position: absolute; inset: 0; z-index: 20;
   display: grid; place-items: center;
-  background: radial-gradient(85% 75% at 50% 50%, rgba(6, 13, 26, 0.42), rgba(6, 13, 26, 0.74));
+  background: radial-gradient(85% 75% at 50% 50%, rgba(6, 13, 26, 0.24), rgba(6, 13, 26, 0.58));
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
 }
@@ -271,8 +271,9 @@
 }
 .live-reveal-title {
   text-align: center; font-weight: 300;
-  font-size: clamp(20px, 2.5vw, 40px); color: var(--text);
+  font-size: clamp(20px, 2.6vw, 42px); color: var(--text);
 }
+.live-reveal-title.message { color: #fff; font-size: clamp(24px, 3.4vw, 56px); }
 .live-reveal-body { min-height: 0; display: grid; }
 .live-reveal-foot {
   text-align: center; font-size: clamp(16px, 1.9vw, 30px); font-weight: 300; color: var(--sky-300);

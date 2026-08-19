@@ -10,20 +10,20 @@ export function TimelineReveal({ dist = [], animate = true }) {
   const total = dist.reduce((a, b) => a + b, 0);
   const step = (TL.x1 - TL.x0) / (STAGES.length - 1);
   // המסגרת מתכווצת לגובה הערימה הגבוהה — בלי שטח ריק מעל
-  const rows = Math.max(1, Math.ceil(Math.max(0, ...dist) / 4));
-  const top = Math.max(0, TL.y - 46 - (rows - 1) * 24 - 16);
+  const rows = Math.max(1, Math.ceil(Math.max(0, ...dist) / 3));
+  const top = Math.max(-40, TL.y - 54 - (rows - 1) * 32 - 22);
 
   // כל בחירה = נקודה. הנקודות נערמות מעל השלב שנבחר.
   const dots = useMemo(() => {
     const out = [];
     dist.forEach((count, si) => {
       for (let i = 0; i < count; i += 1) {
-        const col = i % 4;
-        const row = Math.floor(i / 4);
+        const col = i % 3;
+        const row = Math.floor(i / 3);
         out.push({
           key: `${si}-${i}`,
-          x: TL.x0 + si * step + (col - 1.5) * 21,
-          y: TL.y - 46 - row * 24,
+          x: TL.x0 + si * step + (col - 1) * 28,
+          y: TL.y - 54 - row * 32,
           order: out.length,
         });
       }
@@ -34,16 +34,16 @@ export function TimelineReveal({ dist = [], animate = true }) {
 
   return (
     <svg className="chart" viewBox={`0 ${top} ${TL.w} ${TL.h - top}`} preserveAspectRatio="xMidYMid meet">
-      <line x1={TL.x0 - 40} y1={TL.y} x2={TL.x1 + 40} y2={TL.y} stroke="var(--line-strong)" strokeWidth="1.5" />
+      <line x1={TL.x0 - 44} y1={TL.y} x2={TL.x1 + 44} y2={TL.y} stroke="var(--line-strong)" strokeWidth="1.6" />
       {STAGES.map((s, i) => {
         const x = TL.x0 + i * step;
         return (
           <g key={s.id}>
-            <circle cx={x} cy={TL.y} r="15" fill="var(--navy-900)" stroke="var(--sky-400)" strokeWidth="1.6" />
-            <text x={x} y={TL.y + 7} textAnchor="middle" className="c-node-num">{s.n}</text>
-            <text x={x} y={TL.y + 44} textAnchor="middle" className="c-axis-label">{s.axis}</text>
+            <circle cx={x} cy={TL.y} r="20" fill="var(--navy-900)" stroke="var(--sky-400)" strokeWidth="1.8" />
+            <text x={x} y={TL.y + 9} textAnchor="middle" className="c-node-num">{s.n}</text>
+            <text x={x} y={TL.y + 52} textAnchor="middle" className="c-axis-label">{s.axis}</text>
             {total > 0 && (
-              <motion.text x={x} y={TL.y + 80} textAnchor="middle" className="c-axis-count"
+              <motion.text x={x} y={TL.y + 96} textAnchor="middle" className="c-axis-count"
                 initial={{ opacity: 0 }} animate={{ opacity: dist[i] ? 1 : 0.22 }}
                 transition={{ delay: animate ? 0.4 + dots.length * 0.075 : 0 }}>
                 {dist[i]}
@@ -53,7 +53,7 @@ export function TimelineReveal({ dist = [], animate = true }) {
         );
       })}
       {dots.map((d) => (
-        <motion.circle key={d.key} cx={d.x} cy={d.y} r="8.5"
+        <motion.circle key={d.key} cx={d.x} cy={d.y} r="11.5"
           fill="var(--sky-200)" stroke="rgba(10,21,38,0.8)" strokeWidth="1.5"
           initial={animate ? { opacity: 0, scale: 0, cy: TL.y } : false}
           animate={{ opacity: 1, scale: 1, cy: d.y }}
@@ -65,7 +65,7 @@ export function TimelineReveal({ dist = [], animate = true }) {
 
 /* ═══ Reveal 2 · מסלולי העומס ════════════════════════════════════════════ */
 
-const TR = { w: 1000, h: 460, l: 74, r: 40, t: 34, b: 76 };
+const TR = { w: 1000, h: 460, l: 74, r: 40, t: 48, b: 76 };
 
 function lineFor(values, step, yScale, offset = 0) {
   const pts = values
@@ -103,7 +103,7 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
             <text x={TR.l - 16} y={yScale(v) + 5} textAnchor="end" className="c-axis-num">{v}</text>
           </g>
         ))}
-        <text className="c-axis-title" x={TR.l - 16} y={TR.t - 10} textAnchor="end">עומס</text>
+        <text className="c-axis-title" x={TR.l} y={TR.t - 22} textAnchor="middle">עומס</text>
 
         {STAGES.map((s, i) => {
           const x = TR.l + i * step;
@@ -159,16 +159,6 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
           )}
         </AnimatePresence>
       </div>
-
-      <AnimatePresence mode="wait">
-        {(phase === 'traj3' || phase === 'traj4') && (
-          <motion.div key={phase} className="traj-message"
-            initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.65 }}>
-            <span>{REVEAL_COPY[phase]}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -183,11 +173,12 @@ export function Distribution({ dist = [], avg = null, compact = false }) {
       <div className="dist-bars">
         {dist.map((c, i) => (
           <div key={i} className="dist-col">
-            <div className="dist-val tech">{c || ''}</div>
             <div className="dist-track">
               <motion.div className="dist-bar" initial={{ height: 0 }}
                 animate={{ height: `${(c / max) * 100}%` }}
-                transition={{ type: 'spring', stiffness: 260, damping: 28 }} />
+                transition={{ type: 'spring', stiffness: 260, damping: 28 }}>
+                <span className="dist-val tech">{c || ''}</span>
+              </motion.div>
             </div>
             <div className="dist-lab tech">{i + 1}</div>
           </div>

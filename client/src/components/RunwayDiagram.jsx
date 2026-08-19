@@ -23,7 +23,7 @@ export default function RunwayDiagram({ active = [], birds = false }) {
       <svg className="runway-svg" viewBox="0 0 76 420" preserveAspectRatio="xMidYMid meet"
         xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <clipPath id="rwClip"><rect x="0" y="-60" width="76" height="540" /></clipPath>
+          <clipPath id="rwClip"><rect x="0" y="-4" width="76" height="428" /></clipPath>
         </defs>
 
         {/* צפון */}
