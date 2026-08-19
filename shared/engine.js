@@ -142,6 +142,16 @@ export class Engine {
     return { ok: true, pid, sessionId: s.id, reconnected: false };
   }
 
+  /** יציאה מרצון. מותרת רק בלובי — אחרי הנעילה אין דרך לחזור פנימה. */
+  leave(pid) {
+    const s = this.s;
+    if (!pid || !s.participants[pid]) return { ok: false, reason: 'unknown' };
+    if (s.status !== 'lobby') return { ok: false, reason: 'locked' };
+    delete s.participants[pid];
+    this.changed();
+    return { ok: true };
+  }
+
   setConnected(pid, connected) {
     const s = this.s;
     for (const sess of Object.values(this.sessions)) {

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import TowerScene from '../components/TowerScene.jsx';
 import Board from '../components/Board.jsx';
 import QuestionSheet from '../components/Question.jsx';
-import { useServerState, emit, readToken, writeToken } from '../lib/socket.js';
+import { useServerState, emit, readToken, writeToken, clearToken } from '../lib/socket.js';
 import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY } from '@shared/scenario.js';
 
 const JOIN_ERRORS = {
@@ -13,6 +13,10 @@ const JOIN_ERRORS = {
 };
 
 /* ─── מסך הכניסה הממותג ──────────────────────────────────────────────────── */
+
+function AdminLink() {
+  return <a className="admin-link" href="/admin">כניסת מנחה</a>;
+}
 
 function EntryShell({ children, disconnected = false }) {
   return (
@@ -66,11 +70,12 @@ function JoinForm({ onJoin }) {
         )}
       </AnimatePresence>
       <div className="anon-note">התשובות בפעילות אנונימיות.</div>
+      <AdminLink />
     </>
   );
 }
 
-function Waiting() {
+function Waiting({ onLeave }) {
   return (
     <>
       <div className="waiting">
@@ -80,6 +85,10 @@ function Waiting() {
         <div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div>
       </div>
       <div className="anon-note">התשובות בפעילות אנונימיות.</div>
+      <div className="entry-links">
+        <AdminLink />
+        <button type="button" className="leave-link" onClick={onLeave}>יציאה מהפעילות</button>
+      </div>
     </>
   );
 }
@@ -132,12 +141,24 @@ export default function Participant() {
 
   const submit = useCallback((qid, value) => emit('submit', { qid, value }), []);
 
+  const leave = useCallback(async () => {
+    const res = await emit('leave');
+    if (res?.ok) { clearToken(); setToken(null); }
+    return res;
+  }, []);
+
   if (!state) {
     return <EntryShell><div className="waiting"><div className="waiting-dots"><i /><i /><i /></div></div></EntryShell>;
   }
 
   if (!state.joined) return <EntryShell disconnected={!connected}><JoinForm onJoin={join} /></EntryShell>;
-  if (state.status === 'lobby') return <EntryShell disconnected={!connected}><Waiting /></EntryShell>;
+  if (state.status === 'lobby') {
+    return (
+      <EntryShell disconnected={!connected}>
+        <Waiting onLeave={leave} />
+      </EntryShell>
+    );
+  }
   if (state.status === 'ended' && state.reveal === 'closing') return <Closing />;
 
   const stage = STAGES.find((s) => s.n === state.stageNumber);

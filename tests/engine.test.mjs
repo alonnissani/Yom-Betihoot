@@ -11,6 +11,11 @@ const stranger = await connect(URL);
 check('admin auth rejects bad key', !(await stranger.call('adminAuth', { key: 'nope' })).ok);
 stranger.close();
 await wait(150);
+// כל חבילת בדיקות מאתחלת את עצמה, כדי שסדר ההרצה לא ישפיע
+await admin.call('adminCmd', { type: 'setMode', payload: { mode: 'live' } });
+await wait(150);
+await admin.call('adminCmd', { type: 'resetSession' });
+await wait(300);
 const code = admin.state.code;
 log('   code =', code);
 

@@ -14,7 +14,9 @@ await wait(100);
 
 // מצב חזרה
 await admin.call('adminCmd', { type: 'setMode', payload: { mode: 'rehearsal' } });
-await wait(100);
+await wait(150);
+await admin.call('adminCmd', { type: 'resetSession' });
+await wait(300);
 check('rehearsal mode active', admin.state.mode === 'rehearsal');
 check('rehearsal is a separate session', admin.state.status === 'lobby' && admin.state.participants === 0);
 

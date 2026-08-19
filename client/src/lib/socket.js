@@ -154,6 +154,7 @@ export function useServerState(role, helloPayload = {}) {
 export function emit(event, payload = {}) {
   if (event === 'join') return connection.request({ t: 'join', ...payload });
   if (event === 'submit') return connection.request({ t: 'submit', ...payload });
+  if (event === 'leave') return connection.request({ t: 'leave', ...payload });
   if (event === 'admin:auth') return connection.request({ t: 'adminAuth', ...payload });
   if (event === 'admin:cmd') return connection.request({ t: 'adminCmd', ...payload });
   return Promise.resolve({ ok: false, reason: 'unknown-event' });

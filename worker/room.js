@@ -137,6 +137,12 @@ export class SessionRoom extends DurableObject {
         }
         return ack(result);
       }
+      case 'leave': {
+        const result = this.engine.leave(conn.pid);
+        if (result.ok) conn.pid = null;
+        this.pushState(conn);
+        return ack(result);
+      }
       case 'submit': {
         if (!conn.pid) return ack({ ok: false, reason: 'unknown' });
         const result = this.engine.submit({ pid: conn.pid, qid: msg.qid, value: msg.value });
