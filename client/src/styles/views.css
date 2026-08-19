@@ -346,8 +346,12 @@
 .a-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 
 .a-body {
-  padding: 18px; display: grid; gap: 14px; align-content: center;
+  padding: 18px 18px 26px; display: grid; gap: 14px; align-content: start;
   max-width: 1100px; width: 100%; margin: 0 auto;
+}
+/* מרכוז אנכי רק כשבאמת יש מקום — בטלפון הוא רק מזיז דברים */
+@media (min-width: 760px) and (min-height: 700px) {
+  .a-body { align-content: center; }
 }
 
 .a-lobby { padding: 26px; display: grid; gap: 22px; justify-items: center; text-align: center; }
@@ -381,7 +385,7 @@
 .a-note p { font-size: 14px; line-height: 1.55; color: rgba(255, 232, 196, 0.92); }
 
 .a-vote { padding: 18px 20px; display: grid; gap: 14px; }
-.a-vote-head { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; }
+.a-vote-head { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
 .a-vote-q { font-size: 16px; font-weight: 500; line-height: 1.4; margin-top: 3px; }
 .a-vote-count {
   font-size: 34px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap;
@@ -423,3 +427,58 @@
 .modal-title { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
 .modal-body { font-size: 14px; color: var(--text-2); line-height: 1.55; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+
+/* ═══ Admin בטלפון ════════════════════════════════════════════════════════
+   המנחה מפעיל את הפעילות גם מהטלפון, לכן הסרגל העליון נפרס לשתי שורות
+   מסודרות במקום להישבר, והמונה עולה לראש כרטיס ההצבעה.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 720px) {
+  .a-top {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas:
+      "brand  .     screen menu"
+      "meta   meta  meta   meta";
+    gap: 9px 8px;
+    padding: 10px 12px calc(10px + var(--safe-t));
+    padding-top: calc(10px + var(--safe-t));
+  }
+  .a-brand { grid-area: brand; }
+  .a-meta {
+    grid-area: meta;
+    margin-inline-start: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 1px;
+  }
+  .a-meta::-webkit-scrollbar { display: none; }
+  .a-chip { flex: none; }
+  .a-screen-btn { grid-area: screen; padding: 6px 10px; font-size: 12px; }
+  .a-menu-wrap { grid-area: menu; }
+  .a-menu-btn { padding: 5px 12px; }
+
+  .a-mark { font-size: 18px; }
+  .a-body { padding: 14px 12px 22px; gap: 11px; }
+  .a-card { padding: 14px 15px; }
+  .a-card-title { font-size: 18px; }
+  .a-card.next .a-card-title { font-size: 15.5px; }
+  .a-note { padding: 12px 14px; }
+  .a-note p { font-size: 13.5px; }
+
+  .a-vote { padding: 15px 15px; gap: 12px; }
+  .a-vote-head { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  .a-vote-count { text-align: end; font-size: 30px; }
+  .a-vote-q { font-size: 15px; }
+  .dist-bars { gap: 3px; }
+  .dist.compact .dist-track { height: 62px; }
+  .dist-val, .dist-lab { font-size: 10px; }
+
+  .a-lobby { padding: 20px 16px; gap: 18px; }
+  .a-code { font-size: clamp(42px, 15vw, 64px); }
+
+  .a-foot { padding: 10px 12px calc(10px + var(--safe-b)); }
+  .a-go { padding: 18px; font-size: 18px; }
+}

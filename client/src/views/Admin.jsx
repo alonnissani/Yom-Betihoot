@@ -134,7 +134,7 @@ export default function Admin() {
           {state.status === 'lobby' && <span className="a-chip">קוד <b className="tech">{state.code}</b></span>}
         </div>
         <button className="btn btn-ghost a-screen-btn" onClick={openLive}>
-          <span aria-hidden="true">🖥</span> פתח מסך הקרנה
+          <span aria-hidden="true">🖥</span> מסך הקרנה
         </button>
         <div className="a-menu-wrap">
           <button className="btn btn-ghost a-menu-btn" onClick={() => setMenu((v) => !v)} aria-label="תפריט">⋯</button>
