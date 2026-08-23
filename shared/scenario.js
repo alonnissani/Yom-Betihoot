@@ -34,12 +34,6 @@ export const SCALE_HIGH = 'עומס גבוה';
 export const QUESTIONS = [
   { id: 'q1', kind: 'scale10', stage: 's1', track: 'load', text: LOAD_QUESTION, adminTitle: 'מדידת עומס · שלב 1', liveTitle: 'מדידת עומס פתוחה' },
   { id: 'q2', kind: 'scale10', stage: 's2', track: 'load', text: LOAD_QUESTION, adminTitle: 'מדידת עומס · שלב 2', liveTitle: 'מדידת עומס פתוחה' },
-  {
-    id: 'q3a', kind: 'scale10', stage: 's3', track: 'shift',
-    text: 'עד כמה תמונת העבודה שלך השתנתה בעקבות המידע האחרון?',
-    low: 'כמעט לא השתנתה', high: 'השתנתה לחלוטין',
-    adminTitle: 'שינוי תמונת עבודה · שלב 3', liveTitle: 'השאלה פתוחה',
-  },
   { id: 'q3b', kind: 'scale10', stage: 's3', track: 'load', text: LOAD_QUESTION, adminTitle: 'מדידת עומס · שלב 3', liveTitle: 'מדידת עומס פתוחה' },
   { id: 'q4', kind: 'scale10', stage: 's4', track: 'load', text: LOAD_QUESTION, adminTitle: 'מדידת עומס · שלב 4', liveTitle: 'מדידת עומס פתוחה' },
   { id: 'q5', kind: 'scale10', stage: 's5', track: 'load', text: LOAD_QUESTION, adminTitle: 'מדידת עומס · שלב 5', liveTitle: 'מדידת עומס פתוחה' },
@@ -149,11 +143,10 @@ export const FLOW = [
   },
   {
     id: 'f-s3-cge', stage: 's3', kind: 'beat', label: '4XCGE – מוכן להסיע',
-    summary: 'עדכון סטטוס', note: 'בסיום השלב – שתי שאלות נפרדות: קודם שינוי תמונת העבודה, אחר כך עומס.',
+    summary: 'עדכון סטטוס', note: 'זהו האירוע האחרון בשלב. לאחריו פתח את מדידת העומס.',
     actions: [S('4XCGE', { note: 'מוכן להסיע' })],
   },
-  { id: 'f-q3a', stage: 's3', kind: 'question', questionId: 'q3a', label: 'שינוי תמונת עבודה', note: 'זו לא שאלת עומס. סגור אותה לפני שאתה פותח את מדידת העומס.' },
-  { id: 'f-q3b', stage: 's3', kind: 'question', questionId: 'q3b', label: 'מדידת עומס · שלב 3', note: 'מיד אחרי הקודמת, באותו רגע רגשי.' },
+  { id: 'f-q3b', stage: 's3', kind: 'question', questionId: 'q3b', label: 'מדידת עומס · שלב 3', note: 'פתח מיד, בעוד המידע על LAHAK3 טרי. ללא חשיפה.' },
 
   // ── שלב 4 · התכנסות ────────────────────────────────────────────────────────
   {
@@ -226,7 +219,7 @@ export const FLOW = [
     label: 'שאלה פתוחה',
     note: 'תן זמן לכתוב. חשוף רק כשרוב התשובות בפנים – קיר התשובות הוא הסיום.',
   },
-  { id: 'f-closing', stage: null, kind: 'closing', reveal: 'closing', label: 'מסך סיום', note: 'אותה תמונה. אנשים שונים. 100 שונה. מכאן עוברים להרצאה.' },
+  { id: 'f-closing', stage: null, kind: 'closing', reveal: 'closing', label: 'מסך סיום', note: 'אותה תמונה. 100 שונה. מכאן עוברים להרצאה.' },
 ];
 
 export const FLOW_BY_ID = Object.fromEntries(FLOW.map((f) => [f.id, f]));
@@ -235,7 +228,7 @@ export const REVEAL_COPY = {
   traj3: 'העומס לא עלה אצל כולנו באותו קצב.',
   traj4: 'הממוצע לא מספר את כל הסיפור.',
   wallTitle: 'איך אנחנו יודעים שאנחנו מתקרבים ל־100?',
-  closing: ['אותה תמונה.', 'אנשים שונים.', '100 שונה.'],
+  closing: ['אותה תמונה.', '100 שונה.'],
 };
 
 /** מספר השלב (1–6) שאליו שייך פריט הזרימה, לצורך "שלב X/6" ב־Admin. */

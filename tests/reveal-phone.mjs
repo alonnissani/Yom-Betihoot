@@ -1,6 +1,7 @@
 /** חשיפות מגיעות למכשיר האישי — ורק אחרי שהמנחה חשף. */
 import { chromium } from 'playwright';
 import { connect, wait } from './ws-client.mjs';
+import { joinAsParticipant, enterAsAdmin } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://localhost:3011';
 const KEY = process.env.ADMIN_KEY || '0000';
@@ -23,9 +24,7 @@ const p = await phone.newPage();
 p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await p.goto(APP, { waitUntil: 'domcontentloaded' });
 await wait(1200);
-await p.fill('#code', '1111');
-await p.click('button[type=submit]');
-await wait(900);
+await joinAsParticipant(p, '1111');
 
 await a.call('adminCmd', { type: 'start' });
 await wait(1200);

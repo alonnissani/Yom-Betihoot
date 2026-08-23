@@ -386,9 +386,6 @@ export class Engine {
   botAnswer(def, p, stageIdx) {
     const pr = p.profile;
     if (def.kind === 'scale10') {
-      if (def.track === 'shift') {
-        return clamp(Math.round(4 + Math.random() * 6), 1, 10);
-      }
       const jitter = (Math.random() - 0.5) * 1.4;
       const raw = pr.base + Math.max(0, stageIdx - pr.knee) * pr.slope + jitter;
       return clamp(Math.round(raw), 1, 10);

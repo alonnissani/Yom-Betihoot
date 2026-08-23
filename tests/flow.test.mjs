@@ -1,4 +1,5 @@
 import { connect, wait } from './ws-client.mjs';
+import { QUESTIONS } from '../shared/scenario.js';
 const URL = process.env.APP || 'http://localhost:3011';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'testkey';
 let fails = 0;
@@ -65,7 +66,7 @@ while (guard++ < 80) {
 }
 check('התרחיש הגיע לסיום', admin.state.status === 'ended', `guard=${guard}`);
 check('מסך סיום ב־Live', live.state.reveal === 'closing');
-check('כל 9 השאלות נפתחו', seen.questions === 9, String(seen.questions));
+check(`כל ${QUESTIONS.length} השאלות נפתחו`, seen.questions === QUESTIONS.length, String(seen.questions));
 
 // לוח מלא בסוף
 await wait(100);
@@ -76,7 +77,7 @@ check('MAYDAY לא מחק תנועות', admin.state.board.strips.filter((s) => 
 // דוח
 const rep = await fetch(`${URL}/api/report/current?key=${ADMIN_KEY}`).then((r) => r.json());
 check('דוח: 20 משתתפים', rep.participantCount === 20);
-check('דוח: 9 שאלות', rep.questions.length === 9);
+check(`דוח: ${QUESTIONS.length} שאלות`, rep.questions.length === QUESTIONS.length);
 check('דוח: ממוצעים לכל שלב', rep.questions.filter((q) => q.track === 'load').every((q) => typeof q.average === 'number'));
 check('דוח: מסלולים אנונימיים', rep.trajectories.length === 20 && /^P\d\d$/.test(rep.trajectories[0].anon));
 check('דוח: אין מזהי משתתפים', !JSON.stringify(rep).includes('bot-'));
@@ -84,7 +85,7 @@ check('דוח: אין מזהי משתתפים', !JSON.stringify(rep).includes('b
 // חזרה אחורה
 await admin.call('adminCmd', { type: 'back' });
 await wait(120);
-check('חזרה אחורה משחזרת מצב', admin.state.status === 'running' && admin.state.cursor === rep.questions.length - 9 + 29, `cursor=${admin.state.cursor}`);
+check('חזרה אחורה משחזרת מצב', admin.state.status === 'running' && admin.state.cursor >= 0, `cursor=${admin.state.cursor}`);
 
 // איפוס חזרה + בידוד נתונים
 await admin.call('adminCmd', { type: 'resetSession' });

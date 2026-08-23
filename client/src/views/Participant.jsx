@@ -11,9 +11,10 @@ import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY, JOIN_CODE } from '@sh
 const NUMERIC_CODE = /^\d+$/.test(JOIN_CODE);
 
 const JOIN_ERRORS = {
-  'bad-code': 'קוד שגוי. בדוק את הקוד שעל המסך.',
+  'bad-code': 'קוד שגוי. בדוק שוב.',
   locked: 'הפעילות כבר החלה ולא ניתן להצטרף בשלב זה.',
   timeout: 'החיבור איטי. נסה שוב.',
+  offline: 'אין חיבור כרגע. נסה שוב בעוד רגע.',
 };
 
 /* ─── מסך הכניסה הממותג ──────────────────────────────────────────────────── */
@@ -37,7 +38,32 @@ function EntryShell({ children, disconnected = false }) {
   );
 }
 
-function JoinForm({ onJoin }) {
+/* ─── שער הכניסה ──────────────────────────────────────────────────────────
+   שני מסלולים נפרדים. המשתתף רואה כפתור אחד גדול; כניסת המנחה קיימת
+   לצידו בצורה משנית. הקוד של כל מסלול נבדק בשרת מול המסלול שלו בלבד.
+   ─────────────────────────────────────────────────────────────────────── */
+
+const CODE_PANELS = {
+  participant: {
+    label: 'קוד פעילות',
+    inputId: 'code',
+    submit: 'כניסה לפעילות',
+    busy: 'מתחבר…',
+    note: 'אין צורך בשם, מספר עובד או זיהוי אישי.',
+    secret: false,
+  },
+  admin: {
+    label: 'קוד מנחה',
+    inputId: 'admincode',
+    submit: 'כניסה',
+    busy: 'בודק…',
+    note: null,
+    secret: true,
+  },
+};
+
+function CodePanel({ mode, onSubmit, onBack }) {
+  const cfg = CODE_PANELS[mode];
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -46,31 +72,58 @@ function JoinForm({ onJoin }) {
     e.preventDefault();
     if (!code.trim() || busy) return;
     setBusy(true); setError(null);
-    const res = await onJoin(code.trim());
-    if (res.ok) return;                       // ניווט מתבצע בקורא
+    const res = await onSubmit(code.trim());
+    if (res.ok) return;                       // הניווט מתבצע בקורא
     setBusy(false);
     setError(JOIN_ERRORS[res.reason] || 'לא הצלחנו לחבר אותך. נסה שוב.');
   };
 
   return (
     <>
-      <form className="entry-form" onSubmit={submit}>
-        <label className="entry-label" htmlFor="code">קוד פעילות</label>
-        <input id="code" className="field entry-code tech" value={code} autoComplete="off"
+      <motion.form className="entry-form" onSubmit={submit}
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <label className="entry-label" htmlFor={cfg.inputId}>{cfg.label}</label>
+        <input id={cfg.inputId} className="field entry-code tech" value={code} autoComplete="off"
+          type={cfg.secret ? 'password' : 'text'}
           inputMode={NUMERIC_CODE ? 'numeric' : 'text'}
-          autoCapitalize="characters" spellCheck="false" maxLength={8}
+          autoCapitalize="characters" spellCheck="false" maxLength={8} autoFocus
           onChange={(e) => setCode(e.target.value.toUpperCase())} />
         <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy || !code.trim()}>
-          {busy ? 'מתחבר…' : 'כניסה לפעילות'}
+          {busy ? cfg.busy : cfg.submit}
         </button>
-        <div className="entry-note">אין צורך בשם, מספר עובד או זיהוי אישי.</div>
-      </form>
+        {cfg.note && <div className="entry-note">{cfg.note}</div>}
+        <button type="button" className="gate-back" onClick={onBack}>חזרה</button>
+      </motion.form>
       <AnimatePresence>
         {error && (
           <motion.div className="entry-error" initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>{error}</motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+function EntryGate({ onJoin }) {
+  const [mode, setMode] = useState(null);
+
+  if (mode) {
+    return (
+      <>
+        <CodePanel mode={mode} onBack={() => setMode(null)}
+          onSubmit={(code) => onJoin(code, mode)} />
+        <div className="anon-note">התשובות בפעילות אנונימיות.</div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <motion.div className="entry-choice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <button type="button" className="btn btn-primary btn-lg btn-block cta-participant"
+          onClick={() => setMode('participant')}>כניסה לפעילות</button>
+        <button type="button" className="cta-admin" onClick={() => setMode('admin')}>כניסת מנחה</button>
+      </motion.div>
       <div className="anon-note">התשובות בפעילות אנונימיות.</div>
     </>
   );
@@ -145,10 +198,12 @@ export default function Participant() {
   const hello = useMemo(() => ({ token: token?.pid, sessionId: token?.sessionId }), [token]);
   const { state, connected } = useServerState('participant', hello);
 
-  const join = useCallback(async (code) => {
+  const join = useCallback(async (code, as = 'participant') => {
     const saved = readToken();
-    const res = await emit('join', { code, token: saved?.pid, sessionId: saved?.sessionId });
-    // קוד המנחה מזוהה בשרת. הלקוח מקבל אסימון אטום ועובר למסך הניהול.
+    const res = as === 'admin'
+      ? await emit('join', { code, as: 'admin' })
+      : await emit('join', { code, token: saved?.pid, sessionId: saved?.sessionId });
+    // המפתח נבדק בשרת. הלקוח מקבל אסימון אטום ועובר למסך הניהול.
     if (res.ok && res.admin) {
       writeAdminToken(res.token);
       window.location.assign('/admin');
@@ -174,7 +229,7 @@ export default function Participant() {
     return <EntryShell><div className="waiting"><div className="waiting-dots"><i /><i /><i /></div></div></EntryShell>;
   }
 
-  if (!state.joined) return <EntryShell disconnected={!connected}><JoinForm onJoin={join} /></EntryShell>;
+  if (!state.joined) return <EntryShell disconnected={!connected}><EntryGate onJoin={join} /></EntryShell>;
   if (state.status === 'lobby') {
     return (
       <EntryShell disconnected={!connected}>

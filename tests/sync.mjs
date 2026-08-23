@@ -1,6 +1,7 @@
 /** קוד מנחה במסך הכניסה · תצוגת משתתף ב־Admin · חשיפות בטלפון · הדגשת סטריפ */
 import { chromium } from 'playwright';
 import { connect, wait } from './ws-client.mjs';
+import { joinAsParticipant, enterAsAdmin } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://localhost:3011';
 const KEY = process.env.ADMIN_KEY || '0000';
@@ -26,9 +27,32 @@ const adm = await desk.newPage();
 adm.on('console', (m) => { if (m.type() === 'error') errors.push(`admin: ${m.text()}`); });
 await adm.goto(APP, { waitUntil: 'domcontentloaded' });
 await wait(1200);
-check('אין רמז למסלול מנחה במסך הכניסה', (await adm.locator('.admin-link').count()) === 0);
+check('שני מסלולי כניסה נפרדים במסך הראשי',
+  (await adm.locator('.cta-participant').isVisible()) && (await adm.locator('.cta-admin').isVisible()));
+
+// קוד הפעילות אינו פותח את מסך הניהול
+await adm.click('.cta-admin');
+await adm.waitForSelector('#admincode');
+await adm.fill('#admincode', '1111');
+await adm.click('.entry-form button[type=submit]');
+await wait(1200);
+check('קוד פעילות נדחה במסלול המנחה', await adm.locator('.entry-error').isVisible());
+check('לא עבר למסך הניהול', new URL(adm.url()).pathname === '/');
+
+// ומפתח המנחה אינו מצרף לפעילות
+await adm.click('.gate-back');
+await wait(400);
+await adm.click('.cta-participant');
+await adm.waitForSelector('#code');
 await adm.fill('#code', KEY);
-await adm.click('button[type=submit]');
+await adm.click('.entry-form button[type=submit]');
+await wait(1200);
+check('מפתח המנחה נדחה במסלול המשתתפים', await adm.locator('.entry-error').isVisible());
+check('לא צורף כמשתתף', a.state.participants === 0, String(a.state.participants));
+
+await adm.click('.gate-back');
+await wait(400);
+await enterAsAdmin(adm, KEY, 400);
 await adm.waitForURL('**/admin', { timeout: 15000 });
 await wait(1500);
 check('קוד המנחה מוביל למסך הניהול', new URL(adm.url()).pathname === '/admin');
@@ -44,9 +68,7 @@ const p = await phone.newPage();
 p.on('console', (m) => { if (m.type() === 'error') errors.push(`participant: ${m.text()}`); });
 await p.goto(APP, { waitUntil: 'domcontentloaded' });
 await wait(1200);
-await p.fill('#code', '1111');
-await p.click('button[type=submit]');
-await wait(1000);
+await joinAsParticipant(p, '1111', 1000);
 check('משתתף הצטרף', await p.locator('.waiting-title').isVisible());
 
 await a.call('adminCmd', { type: 'start' });

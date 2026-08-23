@@ -1,6 +1,7 @@
 /** הגעה למסך המנחה מהטלפון, ויציאה מהפעילות כל עוד הלובי פתוח. */
 import { chromium } from 'playwright';
 import { connect, wait } from './ws-client.mjs';
+import { joinAsParticipant, enterAsAdmin } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://localhost:3011';
 const KEY = process.env.ADMIN_KEY || 'testkey';
@@ -28,9 +29,7 @@ check('אין קישור מנחה חשוף במסך הכניסה', (await p.loca
 if (OUT) await p.screenshot({ path: `${OUT}/x1-entry.png` });
 
 // הצטרפות רגילה, ואפשרות לפנות את המקום כל עוד הלובי פתוח
-await p.fill('#code', code);
-await p.click('button[type=submit]');
-await wait(1000);
+await joinAsParticipant(p, code, 1000);
 check('הצטרפות הצליחה', await p.locator('.waiting-title').isVisible());
 check('"יציאה מהפעילות" זמינה בלובי', await p.locator('.leave-link').isVisible());
 if (OUT) await p.screenshot({ path: `${OUT}/x2-waiting.png` });
@@ -39,14 +38,12 @@ check('המשתתף נספר', a.state.participants === 1, String(a.state.partic
 
 await p.click('.leave-link');
 await wait(1200);
-check('אחרי יציאה חוזרים למסך הקוד', await p.locator('.entry-code').isVisible());
+check('אחרי יציאה חוזרים למסך הכניסה', await p.locator('.cta-participant').isVisible());
 await wait(300);
 check('היציאה פינתה את המקום', a.state.participants === 0, String(a.state.participants));
 
 // אחרי נעילת הלובי אין יציאה — משתתף לא יכול לנעול את עצמו בחוץ
-await p.fill('#code', code);
-await p.click('button[type=submit]');
-await wait(900);
+await joinAsParticipant(p, code);
 
 // משתתף שהצטרף בזמן, ורק אחר כך הפעילות נעולה
 const joined = await connect(APP);

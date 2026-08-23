@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import { connect, wait } from './ws-client.mjs';
+import { joinAsParticipant, enterAsAdmin } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://localhost:3011';
 const OUT = process.env.OUT;
@@ -34,9 +35,7 @@ await p.goto(APP, { waitUntil: 'networkidle' });
 await wait(1200);
 check('מסך הכניסה נטען', await p.locator('.entry-title').isVisible());
 
-await p.fill('#code', code);
-await p.click('button[type=submit]');
-await wait(900);
+await joinAsParticipant(p, code);
 check('כניסה עם קוד עובדת', await p.locator('.waiting-title').isVisible());
 check('לא מוצג "אין חיבור" על חיבור תקין', (await p.locator('.conn-bar').count()) === 0);
 await p.screenshot({ path: `${OUT}/cf-waiting.png` });

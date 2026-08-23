@@ -133,9 +133,13 @@ export class SessionRoom extends DurableObject {
         return ack({ ok: true });
       }
       case 'join': {
-        // קוד המנחה מזוהה בשרת בלבד. הלקוח מקבל אסימון אטום, לא את המפתח,
-        // ואינו יודע מה מבדיל בין קוד משתתף לקוד מנחה.
-        if (String(msg.code || '').trim() === this.adminKey) {
+        const code = String(msg.code || '').trim();
+
+        // שני מסלולי כניסה נפרדים. כל מסלול מקבל אך ורק את הקוד שלו:
+        // קוד הפעילות אינו פותח את מסך הניהול, ומפתח המנחה אינו מצרף
+        // לפעילות. המפתח נבדק בשרת ולעולם אינו מגיע ללקוח.
+        if (msg.as === 'admin') {
+          if (!code || code !== this.adminKey) return ack({ ok: false, reason: 'bad-code' });
           const token = crypto.randomUUID();
           this.adminTokens.add(token);
           this.ctx.waitUntil(this.ctx.storage.put(ADMIN_TOKENS_KEY, [...this.adminTokens]));
@@ -144,6 +148,8 @@ export class SessionRoom extends DurableObject {
           this.pushState(conn);
           return ack({ ok: true, admin: true, token });
         }
+        if (code && code === this.adminKey) return ack({ ok: false, reason: 'bad-code' });
+
         const result = this.engine.join(msg);
         if (result.ok) {
           conn.role = 'participant';

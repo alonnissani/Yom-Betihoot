@@ -227,6 +227,54 @@
   letter-spacing: 0.02em;
 }
 
+/* ─── שני מסלולי כניסה ───────────────────────────────────────────────────── */
+
+.entry-choice {
+  width: min(420px, 100%);
+  background: rgba(10, 20, 36, 0.58);
+  border: 1px solid rgba(190, 216, 240, 0.22);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+/* כניסת המנחה נגישה, אך משנית בבירור לכפתור המשתתפים */
+.cta-admin {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.cta-admin:hover { color: rgba(255, 255, 255, 0.88); border-color: rgba(255, 255, 255, 0.5); }
+.cta-admin:focus-visible { outline: 2px solid var(--sky-400); outline-offset: 3px; }
+
+.gate-back {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 4px;
+  font: inherit;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  justify-self: center;
+  transition: color 0.18s var(--ease);
+}
+.gate-back:hover { color: rgba(255, 255, 255, 0.85); }
+.gate-back:focus-visible { outline: 2px solid var(--sky-400); outline-offset: 3px; }
+
 /* ─── קישורים שקטים בתחתית מסך הכניסה ────────────────────────────────────── */
 
 .entry-links { display: flex; align-items: center; gap: 18px; }

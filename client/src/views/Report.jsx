@@ -99,7 +99,6 @@ export default function Report() {
   const loadQs = useMemo(() => (data?.questions || []).filter((q) => q.track === 'load'), [data]);
   const avgSeries = useMemo(() => loadQs.map((q) => q.average), [loadQs]);
   const timelineQ = data?.questions?.find((q) => q.kind === 'timeline');
-  const shiftQ = data?.questions?.find((q) => q.track === 'shift');
   const openQ = data?.questions?.find((q) => q.kind === 'text');
 
   if (error) return <div className="report-msg">{error}</div>;
@@ -182,16 +181,6 @@ export default function Report() {
             ))}
           </div>
         </section>
-
-        {shiftQ && (
-          <section className="r-sec">
-            <h2>שינוי תמונת העבודה בעקבות המידע על LAHAK3</h2>
-            <div className="r-mini-wrap wide">
-              <MiniDist dist={shiftQ.distribution} avg={shiftQ.average} />
-            </div>
-            <p className="r-cap">מספר המשיבים: {shiftQ.responded}.</p>
-          </section>
-        )}
 
         {openQ && (
           <section className="r-sec r-break">
