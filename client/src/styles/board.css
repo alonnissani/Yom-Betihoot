@@ -175,16 +175,74 @@
 .board.dense .strip-note { font-size: 11px; line-height: 1.28; }
 .board.dense .strip-pos { font-size: 11px; }
 
-/* הדגשת עדכון */
+/* ─── הדגשת עדכון ─────────────────────────────────────────────────────────
+   כשמידע על תנועה קיימת משתנה, כל הסטריפ זוהר ופועם שלוש פעימות וחוזר
+   למראהו. הזוהר משתמש בצבע הסיווג עצמו (--c), כך שהעדכון בולט אבל
+   ורוד נשאר ורוד, כחול נשאר כחול ולבן נשאר לבן.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.strip.flash {
+  animation: strip-pulse 2.6s var(--ease) 1 both;
+  z-index: 2;
+}
 .strip.flash::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02));
-  animation: flash-fade 1.5s var(--ease-out) forwards;
+  border-radius: inherit;
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--c) 26%, transparent) 0%,
+    color-mix(in srgb, var(--c) 6%, transparent) 45%,
+    transparent 70%);
+  animation: strip-sheen 2.6s var(--ease) 1 both;
   pointer-events: none;
 }
-@keyframes flash-fade { from { opacity: 1; } to { opacity: 0; } }
+
+@keyframes strip-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 70%, transparent),
+                     0 0 26px 4px color-mix(in srgb, var(--c) 55%, transparent); }
+  14%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent),
+                     0 0 30px 8px color-mix(in srgb, var(--c) 45%, transparent); }
+  30%  { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 26%, transparent),
+                     0 0 14px 2px color-mix(in srgb, var(--c) 18%, transparent); }
+  46%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 50%, transparent),
+                     0 0 28px 7px color-mix(in srgb, var(--c) 40%, transparent); }
+  62%  { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 20%, transparent),
+                     0 0 12px 2px color-mix(in srgb, var(--c) 14%, transparent); }
+  78%  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
+                     0 0 20px 5px color-mix(in srgb, var(--c) 26%, transparent); }
+  100% { box-shadow: var(--shadow-1); }
+}
+
+@keyframes strip-sheen {
+  0%   { opacity: 0.95; }
+  30%  { opacity: 0.35; }
+  46%  { opacity: 0.8; }
+  62%  { opacity: 0.25; }
+  78%  { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+/* בהירות פועמת על התוכן עצמו — עדינה, בלי לשנות צבע סיווג */
+.strip.flash .strip-cs,
+.strip.flash .strip-note,
+.strip.flash .strip-pos,
+.strip.flash .strip-req { animation: strip-bright 2.6s var(--ease) 1 both; }
+
+@keyframes strip-bright {
+  0%   { filter: brightness(1.65); }
+  30%  { filter: brightness(1.06); }
+  46%  { filter: brightness(1.5); }
+  62%  { filter: brightness(1.04); }
+  78%  { filter: brightness(1.28); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip.flash { animation: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent); }
+  .strip.flash::after, .strip.flash .strip-cs, .strip.flash .strip-note,
+  .strip.flash .strip-pos, .strip.flash .strip-req { animation: none; }
+}
 
 /* חירום */
 .strip.emergency {

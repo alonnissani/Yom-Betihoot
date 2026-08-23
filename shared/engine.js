@@ -497,13 +497,21 @@ export class Engine {
       started: s.status !== 'lobby',
     };
 
-    if (role === 'participant') {
-      const q = this.publicQuestion(s.activeQuestion, pid);
+    // 'preview' היא תצוגת המשתתף כפי שהמנחה רואה אותה ב־Admin — אותו state
+    // ואותם רכיבים בדיוק, בלי זהות אישית.
+    if (role === 'participant' || role === 'preview') {
+      const q = this.publicQuestion(s.activeQuestion, role === 'preview' ? null : pid);
+      const revealed = q && q.status === 'revealed';
       return {
         ...base,
         code: undefined,
         question: q && q.status !== 'idle' ? q : null,
-        joined: !!s.participants[pid],
+        joined: role === 'preview' ? true : !!s.participants[pid],
+        // תוצאות מגיעות למכשיר רק אחרי שהמנחה חשף אותן. לעולם לא אוטומטית.
+        results: revealed ? this.stats(s.activeQuestion) : null,
+        trajectories: s.reveal && s.reveal.startsWith('traj') ? this.trajectories() : null,
+        stages: STAGES,
+        preview: role === 'preview' || undefined,
       };
     }
 
@@ -536,6 +544,7 @@ export class Engine {
       counts: s.activeQuestion ? this.counts(s.activeQuestion) : null,
       stats: s.activeQuestion ? this.stats(s.activeQuestion) : null,
       stages: STAGES,
+      participantView: this.viewFor('preview'),
     };
   }
 }

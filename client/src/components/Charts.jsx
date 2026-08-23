@@ -63,22 +63,55 @@ export function TimelineReveal({ dist = [], animate = true }) {
   );
 }
 
+/** גרסת טלפון: ציר אנכי. הנקודות עדיין נוחתות אחת אחרי השנייה. */
+export function TimelineRevealCompact({ dist = [], animate = true }) {
+  let order = 0;
+  return (
+    <ol className="tlc">
+      {STAGES.map((st, i) => {
+        const count = dist[i] || 0;
+        return (
+          <li key={st.id} className={count ? 'on' : ''}>
+            <span className="tlc-num tech">{st.n}</span>
+            <span className="tlc-name">{st.axis}</span>
+            <span className="tlc-dots">
+              {Array.from({ length: count }, (_, k) => {
+                const delay = animate ? 0.3 + (order++) * 0.09 : 0;
+                return (
+                  <motion.i key={k}
+                    initial={animate ? { opacity: 0, scale: 0 } : false}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay, type: 'spring', stiffness: 460, damping: 24 }} />
+                );
+              })}
+            </span>
+            <span className="tlc-count tech">{count}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /* ═══ Reveal 2 · מסלולי העומס ════════════════════════════════════════════ */
 
 const TR = { w: 1000, h: 460, l: 74, r: 40, t: 48, b: 76 };
+// מסך צר: אותו גרף בקנה מידה אחר, כך שהטקסט תופס חלק גדול יותר מהמסגרת
+const TR_COMPACT = { w: 520, h: 430, l: 52, r: 18, t: 40, b: 62 };
 
-function lineFor(values, step, yScale, offset = 0) {
+function lineFor(values, step, yScale, offset = 0, G = TR) {
   const pts = values
-    .map((v, i) => (v === null || v === undefined ? null : { x: TR.l + i * step, y: yScale(v) + offset }))
+    .map((v, i) => (v === null || v === undefined ? null : { x: G.l + i * step, y: yScale(v) + offset }))
     .filter(Boolean);
   if (pts.length < 2) return null;
   return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 }
 
-export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
+export function TrajectoryChart({ trajectories = [], phase = 'traj1', compact = false }) {
+  const G = compact ? TR_COMPACT : TR;
   const cols = STAGES.length;
-  const step = (TR.w - TR.l - TR.r) / (cols - 1);
-  const yScale = (v) => TR.t + (10 - v) / 9 * (TR.h - TR.t - TR.b);
+  const step = (G.w - G.l - G.r) / (cols - 1);
+  const yScale = (v) => G.t + (10 - v) / 9 * (G.h - G.t - G.b);
 
   const showAvg = phase === 'traj2' || phase === 'traj3' || phase === 'traj4';
   const avgDim = phase === 'traj4';
@@ -90,11 +123,11 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
     });
   }, [trajectories, cols]);
 
-  const avgPath = lineFor(avg, step, yScale);
+  const avgPath = lineFor(avg, step, yScale, 0, G);
 
   return (
-    <div className="traj-wrap">
-      <svg className="chart" viewBox={`0 0 ${TR.w} ${TR.h}`} preserveAspectRatio="xMidYMid meet">
+    <div className={`traj-wrap${compact ? ' compact' : ''}`}>
+      <svg className="chart" viewBox={`0 0 ${G.w} ${G.h}`} preserveAspectRatio="xMidYMid meet">
         {/* רשת */}
         {[2, 4, 6, 8, 10].map((v) => (
           <g key={v}>
@@ -120,12 +153,13 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
         <g className={avgDim ? 'traj-lines up' : 'traj-lines'}>
           {trajectories.map((t, i) => {
             // הזחה קטנה וקבועה לכל משתתף: 20 קווים על ערכים שלמים אחרת נבלעים זה בזה
-            const d = lineFor(t.values, step, yScale, ((i % 7) - 3) * 2.6);
+            const d = lineFor(t.values, step, yScale, ((i % 7) - 3) * (compact ? 1.6 : 2.6), G);
             if (!d) return null;
             const hue = 196 + ((i * 37) % 46) - 23;
             return (
               <motion.path key={t.key || i} d={d} fill="none"
-                stroke={`hsl(${hue} 62% 68%)`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                stroke={`hsl(${hue} 62% 68%)`} strokeWidth={compact ? 1.6 : 2}
+                strokeLinecap="round" strokeLinejoin="round"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: showAvg && !avgDim ? 0.34 : 0.62 }}
                 transition={{ pathLength: { delay: 0.15 + i * 0.055, duration: 1.05, ease: 'easeOut' }, opacity: { duration: 0.6 } }} />
@@ -138,12 +172,12 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
           {showAvg && avgPath && (
             <motion.g key="avg" initial={{ opacity: 0 }} animate={{ opacity: avgDim ? 0.22 : 1 }}
               exit={{ opacity: 0 }} transition={{ duration: 0.8 }}>
-              <motion.path d={avgPath} fill="none" stroke="var(--gold)" strokeWidth="5"
+              <motion.path d={avgPath} fill="none" stroke="var(--gold)" strokeWidth={compact ? 3.4 : 5}
                 strokeLinecap="round" strokeLinejoin="round"
                 initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.1, ease: 'easeOut' }} />
               {avg.map((v, i) => v === null ? null : (
-                <circle key={i} cx={TR.l + i * step} cy={yScale(v)} r="6"
-                  fill="var(--navy-900)" stroke="var(--gold)" strokeWidth="2.5" />
+                <circle key={i} cx={G.l + i * step} cy={yScale(v)} r={compact ? 4 : 6}
+                  fill="var(--navy-900)" stroke="var(--gold)" strokeWidth={compact ? 2 : 2.5} />
               ))}
             </motion.g>
           )}
@@ -159,6 +193,16 @@ export function TrajectoryChart({ trajectories = [], phase = 'traj1' }) {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence mode="wait">
+        {(phase === 'traj3' || phase === 'traj4') && (
+          <motion.div key={phase} className="traj-message"
+            initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.65 }}>
+            <span>{REVEAL_COPY[phase]}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -194,7 +238,7 @@ export function Distribution({ dist = [], avg = null, compact = false }) {
 
 /* ═══ קיר התשובות ════════════════════════════════════════════════════════ */
 
-export function AnswerWall({ texts = [], title }) {
+export function AnswerWall({ texts = [], title, compact = false }) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     setShown(0);
@@ -204,7 +248,7 @@ export function AnswerWall({ texts = [], title }) {
   }, [texts.length]);
 
   return (
-    <div className="wall">
+    <div className={`wall${compact ? ' compact' : ''}`}>
       <h2 className="wall-title">{title || REVEAL_COPY.wallTitle}</h2>
       <div className="wall-grid">
         <AnimatePresence>

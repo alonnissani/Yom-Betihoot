@@ -8,11 +8,13 @@ function Strip({ s }) {
   const prevRev = useRef(s.rev);
   const [flash, setFlash] = useState(false);
 
+  // ההדגשה נדלקת רק כשה־rev של הסטריפ באמת התקדם. ב־mount (רענון, חיבור
+  // מחדש, פתיחת מסך נוסף) ה־ref מאותחל לערך הנוכחי ולכן שום דבר לא מהבהב.
   useEffect(() => {
     if (s.rev !== prevRev.current) {
       prevRev.current = s.rev;
       setFlash(true);
-      const t = setTimeout(() => setFlash(false), 1500);
+      const t = setTimeout(() => setFlash(false), 2600);
       return () => clearTimeout(t);
     }
     return undefined;

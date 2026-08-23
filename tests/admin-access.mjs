@@ -23,23 +23,15 @@ const p = await phone.newPage();
 
 await p.goto(APP, { waitUntil: 'domcontentloaded' });
 await wait(1200);
-check('קישור "כניסת מנחה" גלוי במסך הכניסה', await p.locator('.admin-link').isVisible());
+// אין קישור גלוי למנחה — הכניסה היא דרך הקוד בלבד (נבדק ב־sync.mjs)
+check('אין קישור מנחה חשוף במסך הכניסה', (await p.locator('.admin-link').count()) === 0);
 if (OUT) await p.screenshot({ path: `${OUT}/x1-entry.png` });
 
-await p.click('.admin-link');
-await p.waitForLoadState('domcontentloaded');
-await wait(900);
-check('הקישור מוביל למסך המנחה', new URL(p.url()).pathname === '/admin');
-check('מסך המנחה מבקש מפתח', await p.locator('#k').isVisible());
-
-// חוזרים, מצטרפים, ובודקים שגם אחרי הצטרפות אפשר להגיע ל־Admin
-await p.goto(APP, { waitUntil: 'domcontentloaded' });
-await wait(1000);
+// הצטרפות רגילה, ואפשרות לפנות את המקום כל עוד הלובי פתוח
 await p.fill('#code', code);
 await p.click('button[type=submit]');
 await wait(1000);
 check('הצטרפות הצליחה', await p.locator('.waiting-title').isVisible());
-check('קישור מנחה זמין גם אחרי הצטרפות', await p.locator('.admin-link').isVisible());
 check('"יציאה מהפעילות" זמינה בלובי', await p.locator('.leave-link').isVisible());
 if (OUT) await p.screenshot({ path: `${OUT}/x2-waiting.png` });
 await wait(300);

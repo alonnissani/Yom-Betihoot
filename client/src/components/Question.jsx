@@ -61,7 +61,7 @@ function TextAnswer({ value, onChange, disabled, hint }) {
 
 /* ─── גיליון השאלה (Bottom Sheet) ────────────────────────────────────────── */
 
-export default function QuestionSheet({ question, onSubmit }) {
+export default function QuestionSheet({ question, onSubmit, readOnly = false }) {
   const [draft, setDraft] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -71,13 +71,13 @@ export default function QuestionSheet({ question, onSubmit }) {
   if (!question) return null;
   const answered = question.myAnswer !== null && question.myAnswer !== undefined;
   const closed = question.status !== 'open';
-  const locked = answered || closed;
+  const locked = answered || closed || readOnly;
 
   const canSend = !locked && !sending &&
     (question.kind === 'text' ? String(draft || '').trim().length > 0 : draft !== null);
 
   const send = async () => {
-    if (!canSend) return;
+    if (!canSend || readOnly) return;
     setSending(true);
     const res = await onSubmit(question.id, draft);
     setSending(false);

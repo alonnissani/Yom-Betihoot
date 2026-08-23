@@ -9,7 +9,7 @@ export const EVENT_TITLE = 'RAMON SAFETY DAY 2026';
 export const SESSION_LABEL = 'מ0 ל100 – Safety Day 2026';
 
 /** קוד הכניסה לפעילות. קבוע — נאמר בקול פעם אחת ומוקלד על עשרים טלפונים. */
-export const JOIN_CODE = '11111';
+export const JOIN_CODE = '1111';
 
 /** ששת שלבי התרחיש – משמשים גם כציר ה־X בגרף העומס וגם ב־Timeline הסופי. */
 export const STAGES = [

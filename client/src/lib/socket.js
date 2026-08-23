@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
  */
 
 const TOKEN_KEY = 'z2h.participant';
+const ADMIN_TOKEN_KEY = 'z2h.adminToken';
 
 export function readToken() {
   try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch { return null; }
@@ -15,6 +16,17 @@ export function writeToken(v) {
 }
 export function clearToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+}
+
+/** אסימון מנחה אטום. המפתח עצמו לעולם אינו מגיע ללקוח. */
+export function writeAdminToken(token) {
+  try { sessionStorage.setItem(ADMIN_TOKEN_KEY, token); } catch { /* ignore */ }
+}
+export function readAdminToken() {
+  try { return sessionStorage.getItem(ADMIN_TOKEN_KEY); } catch { return null; }
+}
+export function clearAdminToken() {
+  try { sessionStorage.removeItem(ADMIN_TOKEN_KEY); } catch { /* ignore */ }
 }
 
 function wsURL() {
@@ -27,6 +39,7 @@ class Connection {
     this.ws = null;
     this.rid = 0;
     this.waiting = new Map();
+    this.outbox = [];                 // בקשות שנוצרו לפני שהחיבור נפתח
     this.stateHandlers = new Set();
     this.statusHandlers = new Set();
     this.hello = null;
@@ -53,6 +66,9 @@ class Connection {
       this.retry = 0;
       this.emitStatus(true);
       if (this.hello) this.send({ t: 'hello', ...this.hello });
+      // בקשות שנוצרו בזמן טעינת הדף נשלחות ברגע שהחיבור קם
+      const queued = this.outbox.splice(0);
+      for (const msg of queued) this.send(msg);
       this.keepAlive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'ping' }));
       }, 25000);
@@ -111,11 +127,10 @@ class Connection {
         resolve({ ok: false, reason: 'timeout' });
       }, timeoutMs);
       this.waiting.set(rid, { resolve, timer });
-      if (!this.send({ ...obj, rid })) {
-        clearTimeout(timer);
-        this.waiting.delete(rid);
-        resolve({ ok: false, reason: 'offline' });
-      }
+      const msg = { ...obj, rid };
+      // אם החיבור עוד לא נפתח — ממתינים לו במקום להיכשל מיד. ה־timeout
+      // עדיין חוסם. זה קורה בכל טעינת דף, שם ה־socket עוד ב־CONNECTING.
+      if (!this.send(msg)) this.outbox.push(msg);
     });
   }
 

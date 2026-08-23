@@ -70,13 +70,27 @@ check('admin counts 2/5', admin.state.counts.answered === 2 && admin.state.count
 check('admin sees distribution', admin.state.stats.dist[6] === 1 && admin.state.stats.dist[1] === 1, JSON.stringify(admin.state.stats));
 check('admin sees average', admin.state.stats.avg === 4.5, String(admin.state.stats.avg));
 check('participant sees own answer only', ps[0].state.question.myAnswer === 7 && ps[0].state.question.counts === undefined);
-check('participant gets no results', ps[0].state.results === undefined && ps[0].state.stats === undefined);
+check('participant gets no results before reveal',
+  ps[0].state.results === null && ps[0].state.stats === undefined,
+  `results=${JSON.stringify(ps[0].state.results)} stats=${JSON.stringify(ps[0].state.stats)}`);
 
 await admin.call('adminCmd', { type: 'closeQuestion' });
 await wait(120);
 check('question closed', admin.state.question.status === 'closed');
 check('submit after close rejected', (await ps[2].call('submit', { qid: 'q1', value: 5 })).reason === 'closed');
 check('no auto-reveal', admin.state.question.status !== 'revealed');
+// חשיפה יזומה: רק אז התוצאות מגיעות גם למכשיר האישי
+check('עדיין אין תוצאות אצל המשתתף אחרי סגירה', ps[0].state.results === null);
+await admin.call('adminCmd', { type: 'revealQuestion' });
+await wait(200);
+check('אחרי חשיפה המשתתף מקבל את ההתפלגות',
+  ps[0].state.results?.kind === 'scale10' && ps[0].state.results.dist[6] === 1,
+  JSON.stringify(ps[0].state.results));
+check('המשתתף עדיין לא מקבל כלי Admin', ps[0].state.stats === undefined && ps[0].state.counts === undefined);
+await admin.call('adminCmd', { type: 'hideReveal' });
+await wait(200);
+check('הסתרה מחזירה את המכשיר למצב ללא תוצאות', ps[0].state.results === null);
+
 await admin.call('adminCmd', { type: 'advance' });
 await wait(120);
 check('advanced past question', admin.state.question === null && admin.state.current?.stage === 's2');

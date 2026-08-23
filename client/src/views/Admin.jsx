@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Distribution, TimelineReveal } from '../components/Charts.jsx';
-import { useServerState, emit } from '../lib/socket.js';
+import ParticipantPreview from '../components/ParticipantPreview.jsx';
+import { useServerState, emit, readAdminToken, clearAdminToken } from '../lib/socket.js';
 import { ACTIVITY_TITLE, STAGES } from '@shared/scenario.js';
 
 const KEY_STORE = 'z2h.adminKey';
@@ -64,9 +65,17 @@ export default function Admin() {
   const [confirm, setConfirm] = useState(null);
 
   useEffect(() => {
+    const token = readAdminToken();
+    if (token) {
+      emit('admin:auth', { token }).then((r) => {
+        if (r.ok) setAuthed(true);
+        // מוחקים רק כשהשרת דחה במפורש, לא על כשל תקשורת חולף
+        else if (!r.reason) clearAdminToken();
+      });
+      return;
+    }
     const saved = sessionStorage.getItem(KEY_STORE);
-    if (!saved) return;
-    emit('admin:auth', { key: saved }).then((r) => { if (r.ok) setAuthed(true); });
+    if (saved) emit('admin:auth', { key: saved }).then((r) => { if (r.ok) setAuthed(true); });
   }, []);
 
   const cmd = useCallback((type, payload) => emit('admin:cmd', { type, payload }), []);
@@ -256,6 +265,7 @@ export default function Admin() {
             <button className="btn btn-primary" onClick={openReport}>פתח דוח פעילות</button>
           </section>
         )}
+        <ParticipantPreview state={state.participantView} />
       </div>
 
       {/* ─── הכפתור הגדול ─── */}

@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { Engine } from '../shared/engine.js';
 
 const SNAPSHOT_KEY = 'engine:snapshot';
+const ADMIN_TOKENS_KEY = 'admin:tokens';
 
 /**
  * SessionRoom — מופע יחיד שמחזיק את מצב הפעילות ואת כל החיבורים.
@@ -14,15 +15,18 @@ export class SessionRoom extends DurableObject {
     this.env = env;
     this.sockets = new Set();          // { ws, role, pid }
     this.pending = false;
+    this.adminTokens = new Set();      // אסימונים חד־פעמיים למנחה
     this.engine = new Engine(() => this.broadcast());
 
     ctx.blockConcurrencyWhile(async () => {
       const snapshot = await ctx.storage.get(SNAPSHOT_KEY);
       if (snapshot) this.engine.restore(snapshot);
+      const tokens = await ctx.storage.get(ADMIN_TOKENS_KEY);
+      if (Array.isArray(tokens)) this.adminTokens = new Set(tokens);
     });
   }
 
-  get adminKey() { return this.env.ADMIN_KEY || '00000'; }
+  get adminKey() { return this.env.ADMIN_KEY || '0000'; }
 
   // ─── שידור ─────────────────────────────────────────────────────────────────
 
@@ -129,6 +133,17 @@ export class SessionRoom extends DurableObject {
         return ack({ ok: true });
       }
       case 'join': {
+        // קוד המנחה מזוהה בשרת בלבד. הלקוח מקבל אסימון אטום, לא את המפתח,
+        // ואינו יודע מה מבדיל בין קוד משתתף לקוד מנחה.
+        if (String(msg.code || '').trim() === this.adminKey) {
+          const token = crypto.randomUUID();
+          this.adminTokens.add(token);
+          this.ctx.waitUntil(this.ctx.storage.put(ADMIN_TOKENS_KEY, [...this.adminTokens]));
+          conn.role = 'admin';
+          conn.pid = null;
+          this.pushState(conn);
+          return ack({ ok: true, admin: true, token });
+        }
         const result = this.engine.join(msg);
         if (result.ok) {
           conn.role = 'participant';
@@ -150,7 +165,9 @@ export class SessionRoom extends DurableObject {
         return ack(result);
       }
       case 'adminAuth': {
-        if (msg.key !== this.adminKey) return ack({ ok: false });
+        const byKey = msg.key !== undefined && msg.key === this.adminKey;
+        const byToken = msg.token !== undefined && this.adminTokens.has(msg.token);
+        if (!byKey && !byToken) return ack({ ok: false });
         conn.role = 'admin';
         this.pushState(conn);
         return ack({ ok: true });

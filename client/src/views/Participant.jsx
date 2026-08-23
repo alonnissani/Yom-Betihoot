@@ -3,23 +3,20 @@ import { AnimatePresence, motion } from 'framer-motion';
 import TowerScene from '../components/TowerScene.jsx';
 import Board from '../components/Board.jsx';
 import QuestionSheet from '../components/Question.jsx';
-import { useServerState, emit, readToken, writeToken, clearToken } from '../lib/socket.js';
+import RevealPanel, { hasReveal } from '../components/Reveal.jsx';
+import { useServerState, emit, readToken, writeToken, clearToken, writeAdminToken } from '../lib/socket.js';
 import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY, JOIN_CODE } from '@shared/scenario.js';
 
 /** קוד ספרתי -> מקלדת מספרים בטלפון. נגזר מהקוד עצמו כדי שיישאר נכון אם ישתנה. */
 const NUMERIC_CODE = /^\d+$/.test(JOIN_CODE);
 
 const JOIN_ERRORS = {
-  'bad-code': 'קוד פעילות שגוי. בדוק את הקוד שעל המסך.',
+  'bad-code': 'קוד שגוי. בדוק את הקוד שעל המסך.',
   locked: 'הפעילות כבר החלה ולא ניתן להצטרף בשלב זה.',
   timeout: 'החיבור איטי. נסה שוב.',
 };
 
 /* ─── מסך הכניסה הממותג ──────────────────────────────────────────────────── */
-
-function AdminLink() {
-  return <a className="admin-link" href="/admin">כניסת מנחה</a>;
-}
 
 function EntryShell({ children, disconnected = false }) {
   return (
@@ -50,8 +47,9 @@ function JoinForm({ onJoin }) {
     if (!code.trim() || busy) return;
     setBusy(true); setError(null);
     const res = await onJoin(code.trim());
+    if (res.ok) return;                       // ניווט מתבצע בקורא
     setBusy(false);
-    if (!res.ok) setError(JOIN_ERRORS[res.reason] || 'לא הצלחנו לחבר אותך. נסה שוב.');
+    setError(JOIN_ERRORS[res.reason] || 'לא הצלחנו לחבר אותך. נסה שוב.');
   };
 
   return (
@@ -74,7 +72,6 @@ function JoinForm({ onJoin }) {
         )}
       </AnimatePresence>
       <div className="anon-note">התשובות בפעילות אנונימיות.</div>
-      <AdminLink />
     </>
   );
 }
@@ -90,30 +87,13 @@ function Waiting({ onLeave }) {
       </div>
       <div className="anon-note">התשובות בפעילות אנונימיות.</div>
       <div className="entry-links">
-        <AdminLink />
         <button type="button" className="leave-link" onClick={onLeave}>יציאה מהפעילות</button>
       </div>
     </>
   );
 }
 
-/* ─── מצבי סיום ורגעי חשיפה ──────────────────────────────────────────────── */
-
-function LookAtScreen({ title, sub }) {
-  return (
-    <motion.div className="look" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <div className="look-inner">
-        <div className="look-icon" aria-hidden="true">
-          <span /><span /><span />
-        </div>
-        <div className="look-title">{title}</div>
-        {sub && <div className="look-sub">{sub}</div>}
-      </div>
-    </motion.div>
-  );
-}
-
-function Closing() {
+export function Closing() {
   return (
     <div className="closing closing-participant">
       {REVEAL_COPY.closing.map((line, i) => (
@@ -121,6 +101,39 @@ function Closing() {
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 + i * 0.5, duration: 0.75 }}>{line}</motion.div>
       ))}
+    </div>
+  );
+}
+
+/* ─── במה משותפת ─────────────────────────────────────────────────────────────
+   זהו בדיוק מה שהמשתתף רואה. הוא מוצג גם בטלפון וגם בתוך מסך המנחה,
+   מאותו state ומאותם רכיבים, כדי שלא ייתכן פער בין השניים.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+export function ParticipantStage({ state, onSubmit, readOnly = false, disconnected = false }) {
+  const stage = STAGES.find((s) => s.n === state.stageNumber);
+  const q = state.question;
+  const showSheet = q && (q.status === 'open' || q.status === 'closed');
+  const showReveal = !showSheet && hasReveal(state);
+  // מפתח יציב לאורך שלבי הגרף (traj1..traj4): הקווים נשארים על המסך
+  // והממוצע והמסר מצטרפים אליהם, במקום שהגרף ייבנה מחדש בכל שלב.
+  const revealKey = q && q.status === 'revealed' ? `q-${q.id}` : 'traj';
+
+  if (state.status === 'ended' && state.reveal === 'closing') return <Closing />;
+
+  return (
+    <div className="p-shell">
+      {disconnected && <div className="conn-bar">אין חיבור — מתחברים מחדש…</div>}
+      <div className="p-board">
+        <Board board={state.board} stageNumber={state.stageNumber} stageCount={state.stageCount}
+          stageTitle={stage?.title} variant="participant" tight={!!showSheet} />
+      </div>
+      <AnimatePresence>
+        {showReveal && <RevealPanel key={revealKey} state={state} />}
+        {showSheet && (
+          <QuestionSheet key={q.id} question={q} onSubmit={onSubmit} readOnly={readOnly} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -135,6 +148,12 @@ export default function Participant() {
   const join = useCallback(async (code) => {
     const saved = readToken();
     const res = await emit('join', { code, token: saved?.pid, sessionId: saved?.sessionId });
+    // קוד המנחה מזוהה בשרת. הלקוח מקבל אסימון אטום ועובר למסך הניהול.
+    if (res.ok && res.admin) {
+      writeAdminToken(res.token);
+      window.location.assign('/admin');
+      return res;
+    }
     if (res.ok) {
       const next = { pid: res.pid, sessionId: res.sessionId };
       writeToken(next);
@@ -163,29 +182,6 @@ export default function Participant() {
       </EntryShell>
     );
   }
-  if (state.status === 'ended' && state.reveal === 'closing') return <Closing />;
 
-  const stage = STAGES.find((s) => s.n === state.stageNumber);
-  const q = state.question;
-  const showSheet = q && (q.status === 'open' || q.status === 'closed');
-  const inReveal = !showSheet && (
-    (q && q.status === 'revealed') || (state.reveal && state.reveal.startsWith('traj'))
-  );
-
-  return (
-    <div className="p-shell">
-      {!connected && <div className="conn-bar">אין חיבור — מתחברים מחדש…</div>}
-      <div className="p-board">
-        <Board board={state.board} stageNumber={state.stageNumber} stageCount={state.stageCount}
-          stageTitle={stage?.title} variant="participant" tight={!!showSheet} />
-      </div>
-      <AnimatePresence>
-        {inReveal && (
-          <LookAtScreen key="look" title="התוצאות מוצגות על המסך המשותף"
-            sub="אין צורך לעשות דבר במכשיר" />
-        )}
-        {showSheet && <QuestionSheet key={q.id} question={q} onSubmit={submit} />}
-      </AnimatePresence>
-    </div>
-  );
+  return <ParticipantStage state={state} onSubmit={submit} disconnected={!connected} />;
 }
