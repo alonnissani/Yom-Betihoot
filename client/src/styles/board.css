@@ -398,3 +398,57 @@
   .board-live.dense .strip-cs { font-size: 22px; }
   .board-live.dense .strip-note { font-size: 14px; }
 }
+
+/* ─── ההתפתחות הנוכחית ────────────────────────────────────────────────────
+   הכרטיס הגדול בראש הלוח. תמיד מציג את ההתפתחות האחרונה שהופעלה, ומוחלף
+   בכל התפתחות חדשה. הצבע נגזר מסיווג התנועה, כמו הסטריפ עצמו.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.cur {
+  width: 100%;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 4px solid var(--c, var(--loc));
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--c, var(--loc)) 15%, rgba(12, 24, 42, 0.94)),
+    rgba(12, 24, 42, 0.94) 62%);
+  box-shadow: var(--shadow-2);
+  padding: 9px 14px 11px;
+}
+.cur.k-arr { --c: var(--arr); }
+.cur.k-dep { --c: var(--dep); }
+.cur.k-local { --c: var(--loc); }
+@media (min-width: 1100px) { .cur { max-width: 900px; } }
+
+.cur-tag {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.cur-body {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+.cur-cs {
+  font-family: var(--font-tech);
+  font-size: clamp(26px, 6.6vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.02;
+  color: #fff;
+  white-space: nowrap;
+}
+.cur-line {
+  font-family: var(--font-tech);
+  font-size: clamp(15px, 3.6vw, 21px);
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  line-height: 1.2;
+  color: var(--c, var(--loc));
+  direction: ltr;
+  unicode-bidi: isolate;
+}

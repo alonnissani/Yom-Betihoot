@@ -30,7 +30,7 @@ export function createSession(mode = 'live') {
     startedAt: null,
     endedAt: null,
     participants: {},           // pid -> { pid, joinedAt, connected, bot }
-    board: { strips: [], overlays: [] },
+    board: { strips: [], overlays: [], current: null },
     activeQuestion: null,
     questions: Object.fromEntries(
       QUESTIONS.map((q) => [q.id, { id: q.id, status: 'idle', openedAt: null, closedAt: null, answers: {} }]),
@@ -62,6 +62,9 @@ function applyAction(s, action) {
     strip.updatedSeq = s.seq;
   } else if (action.op === 'remove') {
     s.board.strips = s.board.strips.filter((x) => x.id !== action.id);
+  } else if (action.op === 'headline') {
+    // ההתפתחות הנוכחית מחליפה את הקודמת ולעולם אינה נצברת
+    s.board.current = action.headline ? { ...action.headline, seq: s.seq } : null;
   } else if (action.op === 'overlay') {
     const o = { ...action.overlay, id: `${action.overlay.kind}`, seq: s.seq, phase: action.overlay.kind === 'mayday' ? 'impact' : undefined };
     s.board.overlays = s.board.overlays.filter((x) => x.id !== o.id);
@@ -72,7 +75,7 @@ function applyAction(s, action) {
 }
 
 function rebuildBoard(s, uptoCursor) {
-  s.board = { strips: [], overlays: [] };
+  s.board = { strips: [], overlays: [], current: null };
   s.seq = 0;
   for (let i = 0; i <= uptoCursor; i += 1) {
     const item = FLOW[i];
@@ -341,6 +344,7 @@ export class Engine {
     this.active = snapshot.active === 'rehearsal' ? 'rehearsal' : 'live';
     // טיימרים אינם שורדים הפעלה מחדש; שכבות זמניות מנוקות כדי לא להיתקע על המסך.
     for (const sess of Object.values(this.sessions)) {
+      if (sess.board.current === undefined) sess.board.current = null;
       sess.board.overlays = (sess.board.overlays || []).filter((o) => o.kind === 'mayday');
       for (const o of sess.board.overlays) o.phase = 'banner';
       for (const p of Object.values(sess.participants)) p.connected = false;

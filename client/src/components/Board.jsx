@@ -43,6 +43,24 @@ function Strip({ s }) {
   );
 }
 
+/* ─── ההתפתחות הנוכחית ───────────────────────────────────────────────────── */
+
+function CurrentDevelopment({ current }) {
+  return (
+    <motion.div className={`cur k-${current.kind || 'local'}`}
+      initial={{ opacity: 0, y: -12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.24 } }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+      <div className="cur-tag">התפתחות אחרונה</div>
+      <div className="cur-body">
+        <span className="cur-cs">{current.callsign}</span>
+        <span className="cur-line">{current.line}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ─── שכבות אירוע ────────────────────────────────────────────────────────── */
 
 const ovMotion = {
@@ -105,6 +123,7 @@ function Overlay({ o }) {
 export default function Board({ board, stageNumber, stageCount, stageTitle, variant = 'participant', tight = false }) {
   const strips = board?.strips || [];
   const overlays = board?.overlays || [];
+  const current = board?.current || null;
   const arr = strips.filter((s) => s.kind === 'arr');
   const dep = strips.filter((s) => s.kind !== 'arr');
 
@@ -137,6 +156,11 @@ export default function Board({ board, stageNumber, stageCount, stageTitle, vari
       <div className="overlay-stack">
         <AnimatePresence initial={false}>
           {overlays.map((o) => <Overlay key={o.id} o={o} />)}
+        </AnimatePresence>
+        {/* mode="wait": ההתפתחות הקודמת יוצאת לפני שהחדשה נכנסת, כך שתמיד
+            מוצג כרטיס אחד בלבד ואין קפיצה בגובה בזמן ההחלפה. */}
+        <AnimatePresence initial={false} mode="wait">
+          {current && <CurrentDevelopment key={`cur-${current.seq}`} current={current} />}
         </AnimatePresence>
       </div>
 

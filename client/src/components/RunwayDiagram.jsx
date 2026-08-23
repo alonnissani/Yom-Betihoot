@@ -28,7 +28,7 @@ export default function RunwayDiagram({ active = [], birds = false }) {
 
         {/* צפון */}
         <g opacity="0.55">
-          <path d="M8 30 L8 12 M8 12 L4.5 18 M8 12 L11.5 18" stroke="rgba(234,241,248,0.5)"
+          <path d="M8 12 L8 30 M8 30 L4.5 24 M8 30 L11.5 24" stroke="rgba(234,241,248,0.5)"
             strokeWidth="1.2" fill="none" strokeLinecap="round" />
           <text className="rw-tw-label" x="8" y="41" fontSize="11" textAnchor="middle">N</text>
         </g>

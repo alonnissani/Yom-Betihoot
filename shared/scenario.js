@@ -63,6 +63,17 @@ export const LOAD_TRACK = QUESTIONS.filter((q) => q.track === 'load').map((q) =>
 const S = (callsign, patch) => ({ op: 'update', id: callsign, patch });
 const ADD = (strip) => ({ op: 'add', strip });
 
+/**
+ * ההתפתחות הנוכחית — הכרטיס הגדול בראש לוח התנועה.
+ * כל התפתחות מחליפה את הקודמת; הוא לעולם אינו נצבר.
+ * אירועים בעלי תצוגה ייעודית משלהם (שיחה, ציפורים, MAYDAY) מנקים אותו
+ * באמצעות HEADLINE(null), כדי שלא תופיע כפילות באותו אזור.
+ */
+const HEADLINE = (callsign, line, kind) => ({
+  op: 'headline',
+  headline: callsign ? { callsign, line, kind } : null,
+});
+
 export const FLOW = [
   // ── שלב 1 · תמונת פתיחה רגועה ──────────────────────────────────────────────
   {
@@ -84,21 +95,21 @@ export const FLOW = [
     label: '4XCGE קורא לקלירנס',
     summary: 'תנועה חדשה נכנסת לתמונה – אימון מכשירים',
     note: 'האירועים נכנסים אחד אחרי השני. אל תפעיל את השני לפני שהראשון נקלט – כ־3–5 שניות ביניהם.',
-    actions: [ADD({ id: '4XCGE', callsign: '4XCGE', acType: 'C172', kind: 'local', pos: 'APRON', note: 'קורא לקבלת קלירנס לאימון מכשירים' })],
+    actions: [ADD({ id: '4XCGE', callsign: '4XCGE', acType: 'C172', kind: 'local', pos: 'APRON', note: 'קורא לקבלת קלירנס לאימון מכשירים' }), HEADLINE('4XCGE', 'REQUESTING CLEARANCE · IFR TRAINING', 'local')],
   },
   {
     id: 'f-s2-aiz', stage: 's2', kind: 'beat',
     label: 'AIZ801 – מוכן לפושבק',
     summary: 'עדכון סטטוס על סטריפ קיים',
     note: 'שים לב שההדגשה על הסטריפ נראית לכולם לפני שאתה ממשיך.',
-    actions: [S('AIZ801', { note: 'מוכן לפושבק', pos: 'APRON' })],
+    actions: [S('AIZ801', { note: 'מוכן לפושבק', pos: 'APRON' }), HEADLINE('AIZ801', 'READY FOR PUSHBACK', 'dep')],
   },
   {
     id: 'f-s2-isr', stage: 's2', kind: 'beat',
     label: 'ISR045 – קורא בקשר',
     summary: 'הנחיתה נכנסת לתדר',
     note: 'לאחר האירוע הזה – פתח מדידת עומס נוספת.',
-    actions: [S('ISR045', { note: 'קורא בקשר' })],
+    actions: [S('ISR045', { note: 'קורא בקשר' }), HEADLINE('ISR045', 'ON FREQUENCY', 'arr')],
   },
   { id: 'f-q2', stage: 's2', kind: 'question', questionId: 'q2', label: 'מדידת עומס · שלב 2', note: 'אל תחשוף תוצאות. סגור כשהמונה מגיע לכולם או כשהקצב מחייב.' },
 
@@ -108,7 +119,7 @@ export const FLOW = [
     label: '📞 שיחה נכנסת',
     summary: 'רק חיווי השיחה – בלי תוכן',
     note: 'תן לשיחה לצלצל כ־3 שניות לפני שאתה חושף את התוכן. השקט הזה עובד.',
-    actions: [{ op: 'overlay', overlay: { kind: 'phone', state: 'ringing' } }],
+    actions: [{ op: 'overlay', overlay: { kind: 'phone', state: 'ringing' } }, HEADLINE(null)],
   },
   {
     id: 'f-s3-lahak', stage: 's3', kind: 'beat',
@@ -124,27 +135,28 @@ export const FLOW = [
         },
       },
       ADD({ id: 'LAHAK3', callsign: 'LAHAK3', acType: 'UH60', kind: 'local', pos: 'הזנקה', note: 'הזנקה באיחור · צפוי באוויר בעוד כדקה · פינוי לסורוקה', pending: true }),
+      HEADLINE(null),
     ],
   },
   {
     id: 'f-s3-aiz', stage: 's3', kind: 'beat', label: 'AIZ801 – מוכן להסיע',
     summary: 'עדכון סטטוס', note: 'רצף. אל תמהר יותר מדי – כל עדכון צריך להיראות.',
-    actions: [S('AIZ801', { note: 'מוכן להסיע' })],
+    actions: [S('AIZ801', { note: 'מוכן להסיע' }), HEADLINE('AIZ801', 'READY FOR TAXI', 'dep')],
   },
   {
     id: 'f-s3-isr', stage: 's3', kind: 'beat', label: 'ISR045 – ב־ADIVI',
     summary: 'הנחיתה מתקדמת', note: 'רצף.',
-    actions: [S('ISR045', { note: 'ב־ADIVI', pos: 'ADIVI' })],
+    actions: [S('ISR045', { note: 'ב־ADIVI', pos: 'ADIVI' }), HEADLINE('ISR045', 'AT ADIVI', 'arr')],
   },
   {
     id: 'f-s3-fm1', stage: 's3', kind: 'beat', label: 'FM1 – על A3, ממתין לפני A',
     summary: 'עדכון מיקום', note: 'רצף.',
-    actions: [S('FM1', { note: 'על A3, ממתין לפני A', pos: 'A3' })],
+    actions: [S('FM1', { note: 'על A3, ממתין לפני A', pos: 'A3' }), HEADLINE('FM1', 'ON A3 — HOLDING SHORT OF A', 'local')],
   },
   {
     id: 'f-s3-cge', stage: 's3', kind: 'beat', label: '4XCGE – מוכן להסיע',
     summary: 'עדכון סטטוס', note: 'זהו האירוע האחרון בשלב. לאחריו פתח את מדידת העומס.',
-    actions: [S('4XCGE', { note: 'מוכן להסיע' })],
+    actions: [S('4XCGE', { note: 'מוכן להסיע' }), HEADLINE('4XCGE', 'READY FOR TAXI', 'local')],
   },
   { id: 'f-q3b', stage: 's3', kind: 'question', questionId: 'q3b', label: 'מדידת עומס · שלב 3', note: 'פתח מיד, בעוד המידע על LAHAK3 טרי. ללא חשיפה.' },
 
@@ -152,22 +164,22 @@ export const FLOW = [
   {
     id: 'f-s4-aiz', stage: 's4', kind: 'beat', label: 'AIZ801 – מוכן להמראה, מקושרת A1',
     summary: 'ההמראה מתקרבת למסלול', note: 'מכאן העדכונים מגיעים בזה אחר זה. שמור על קצב אחיד.',
-    actions: [S('AIZ801', { note: 'מוכן להמראה, מקושרת A1', pos: 'A1' })],
+    actions: [S('AIZ801', { note: 'מוכן להמראה, מקושרת A1', pos: 'A1' }), HEADLINE('AIZ801', 'READY FOR DEPARTURE · A1', 'dep')],
   },
   {
     id: 'f-s4-cge', stage: 's4', kind: 'beat', label: '4XCGE – מוכן להמראה, מקושרת A2',
     summary: 'תנועה שנייה במקושרת', note: 'רצף.',
-    actions: [S('4XCGE', { note: 'מוכן להמראה, מקושרת A2', pos: 'A2' })],
+    actions: [S('4XCGE', { note: 'מוכן להמראה, מקושרת A2', pos: 'A2' }), HEADLINE('4XCGE', 'READY FOR DEPARTURE · A2', 'local')],
   },
   {
     id: 'f-s4-lahak', stage: 's4', kind: 'beat', label: 'LAHAK3 – קורא בקשר',
     summary: 'גובה 1,000 באילות, לחצייה צפונה', note: 'רצף.',
-    actions: [S('LAHAK3', { note: 'קורא בקשר, גובה 1,000 באילות, לחצייה צפונה', pos: '1,000 FT', pending: false })],
+    actions: [S('LAHAK3', { note: 'קורא בקשר, גובה 1,000 באילות, לחצייה צפונה', pos: '1,000 FT', pending: false }), HEADLINE('LAHAK3', 'ON FREQUENCY · 1,000 FT OVER EILOT — CROSSING NORTH', 'local')],
   },
   {
     id: 'f-s4-isr', stage: 's4', kind: 'beat', label: 'ISR045 – בקשת HOLD',
     summary: 'HOLD AT ADIVI FOR SYSTEM CHECK', note: 'לאחר האירוע הזה – מדידת עומס נוספת.',
-    actions: [S('ISR045', { note: 'ב־ADIVI ומבקש', request: 'HOLD AT ADIVI FOR SYSTEM CHECK', pos: 'ADIVI' })],
+    actions: [S('ISR045', { note: 'ב־ADIVI ומבקש', request: 'HOLD AT ADIVI FOR SYSTEM CHECK', pos: 'ADIVI' }), HEADLINE('ISR045', 'REQUESTING HOLD AT ADIVI FOR SYSTEM CHECK', 'arr')],
   },
   { id: 'f-q4', stage: 's4', kind: 'question', questionId: 'q4', label: 'מדידת עומס · שלב 4', note: 'ללא חשיפה.' },
 
@@ -175,13 +187,13 @@ export const FLOW = [
   {
     id: 'f-s5-shets', stage: 's5', kind: 'beat', label: 'SHETS78 קורא לקלירנס',
     summary: 'עוד תנועה נכנסת לתמונה', note: 'קודם התנועה, ורק אחר כך הציפורים.',
-    actions: [ADD({ id: 'SHETS78', callsign: 'SHETS78', acType: 'F16', kind: 'dep', pos: 'APRON', note: 'קורא לקבלת קלירנס' })],
+    actions: [ADD({ id: 'SHETS78', callsign: 'SHETS78', acType: 'KC135', kind: 'dep', pos: 'APRON', note: 'קורא לקבלת קלירנס' }), HEADLINE('SHETS78', 'REQUESTING CLEARANCE', 'dep')],
   },
   {
     id: 'f-s5-birds', stage: 's5', kind: 'beat', label: 'להקת קורמורנים',
     summary: '~100 קורמורנים · 500 רגל · מצפון לדרום מעל המסלול',
     note: 'האנימציה נמשכת כ־9 שניות. תן לה להסתיים לפני שאתה פותח את מדידת העומס.',
-    actions: [{ op: 'overlay', overlay: { kind: 'birds', title: 'BIRD ACTIVITY', lines: ['~100 CORMORANTS', '500 FT', 'N → S'] } }],
+    actions: [{ op: 'overlay', overlay: { kind: 'birds', title: 'BIRD ACTIVITY', lines: ['~100 CORMORANTS', '500 FT', 'N → S'] } }, HEADLINE(null)],
   },
   { id: 'f-q5', stage: 's5', kind: 'question', questionId: 'q5', label: 'מדידת עומס · שלב 5', note: 'ללא חשיפה.' },
 
@@ -196,6 +208,7 @@ export const FLOW = [
         op: 'overlay', delay: 2500,
         overlay: { kind: 'mayday', callsign: 'ISR045', lines: ['ENGINE EMERGENCY', 'IMMEDIATE LANDING'] },
       },
+      HEADLINE(null),
     ],
   },
   { id: 'f-q6', stage: 's6', kind: 'question', questionId: 'q6', label: 'מדידת עומס אחרונה', note: 'זו המדידה האחרונה בתרחיש. ללא חשיפה.' },
