@@ -371,11 +371,12 @@
 .ov-mayday.banner .m-line { font-size: 12px; }
 .ov-mayday.banner .m-lines { gap: 12px; margin-top: 0; }
 
+/* צפון נמצא בתחתית האיור, ולכן חצייה מצפון לדרום נעה מלמטה למעלה */
 @keyframes bird-pass {
-  0% { transform: translateY(-70px); opacity: 0; }
+  0% { transform: translateY(480px); opacity: 0; }
   8% { opacity: 1; }
   88% { opacity: 1; }
-  100% { transform: translateY(480px); opacity: 0; }
+  100% { transform: translateY(-70px); opacity: 0; }
 }
 @keyframes bird-flap {
   0%, 100% { transform: scaleY(1); }

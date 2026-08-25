@@ -50,7 +50,6 @@ function CurrentDevelopment({ current }) {
     <motion.div className={`cur k-${current.kind || 'local'}`}
       initial={{ opacity: 0, y: -12, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.24 } }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
       <div className="cur-tag">התפתחות אחרונה</div>
       <div className="cur-body">
@@ -157,11 +156,11 @@ export default function Board({ board, stageNumber, stageCount, stageTitle, vari
         <AnimatePresence initial={false}>
           {overlays.map((o) => <Overlay key={o.id} o={o} />)}
         </AnimatePresence>
-        {/* mode="wait": ההתפתחות הקודמת יוצאת לפני שהחדשה נכנסת, כך שתמיד
-            מוצג כרטיס אחד בלבד ואין קפיצה בגובה בזמן ההחלפה. */}
-        <AnimatePresence initial={false} mode="wait">
-          {current && <CurrentDevelopment key={`cur-${current.seq}`} current={current} />}
-        </AnimatePresence>
+        {/* ללא AnimatePresence בכוונה: ה־key מחליף את הכרטיס באותו render,
+            כך שתמיד קיים בדיוק אחד. אנימציית יציאה הייתה תלויה ב־rAF, ובטאב
+            שאינו בחזית (מסך ההקרנה) הדפדפן מאט אותו — מה שהשאיר שם את
+            ההתפתחות הקודמת. הכניסה עדיין מונפשת. */}
+        {current && <CurrentDevelopment key={`cur-${current.seq}`} current={current} />}
       </div>
 
       <div className="board-grid">

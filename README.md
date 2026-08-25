@@ -200,6 +200,7 @@ node tests/admin-access.mjs  # יציאה מהפעילות בלובי, ונעי�
 node tests/sync.mjs          # קוד מנחה, תצוגת משתתף ב־Admin, הדגשת סטריפ
 node tests/reveal-phone.mjs  # כל החשיפות מגיעות למכשיר האישי — ורק אחרי חשיפה
 node tests/current-dev.mjs   # כרטיס ההתפתחות הנוכחית, חץ הצפון, סוגי מטוסים
+node tests/birds.mjs         # כיוון חציית הקורמורנים מול חץ הצפון
 ```
 
 הבדיקות רצות מול ה־Worker האמיתי (workerd), לא מול מימוש מדומה.
