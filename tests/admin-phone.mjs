@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { connect, wait } from './ws-client.mjs';
 const APP = process.env.APP || 'http://localhost:3011';
 const KEY = process.env.ADMIN_KEY || 'testkey';
-const OUT = process.env.OUT;
+const OUT = process.env.OUT || 'tests/out';
 
 const a = await connect(APP);
 await a.call('adminAuth', { key: KEY });

@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 const APP = process.env.APP || 'http://localhost:3011';
-const OUT = process.env.OUT;
+const OUT = process.env.OUT || 'tests/out';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
 for (const [name, vp] of [['phone', { width: 390, height: 844 }], ['wide', { width: 1500, height: 900 }]]) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: name === 'phone' ? 2 : 1, locale: 'he-IL' });

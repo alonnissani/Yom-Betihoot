@@ -5,3 +5,6 @@ data/
 .DS_Store
 
 .wrangler/
+
+# צילומי מסך מהבדיקות; ברירת מחדל כש־OUT לא הוגדר
+tests/out/

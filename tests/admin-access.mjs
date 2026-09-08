@@ -5,7 +5,7 @@ import { joinAsParticipant, enterAsAdmin } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://localhost:3011';
 const KEY = process.env.ADMIN_KEY || 'testkey';
-const OUT = process.env.OUT;
+const OUT = process.env.OUT || 'tests/out';
 let fails = 0;
 const check = (n, c, e = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${e ? ' :: ' + e : ''}`); if (!c) fails++; };
 

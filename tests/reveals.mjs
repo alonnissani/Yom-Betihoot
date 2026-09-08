@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { io } from 'socket.io-client';
 const URL = 'http://localhost:3011';
-const OUT = process.env.OUT;
+const OUT = process.env.OUT || 'tests/out';
 const call = (s, ev, p) => new Promise((r) => s.emit(ev, p, r));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
