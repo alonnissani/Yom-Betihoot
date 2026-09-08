@@ -209,16 +209,37 @@ export class SessionRoom extends DurableObject {
       case 'resetSession': return e.resetSession();
       case 'endSession': {
         const record = e.endSession();
-        // רק פעילות אמיתית נשמרת. חזרה וסימולציה אינן מגיעות לאחסון
-        // ואינן מופיעות ברשימת ה־Sessions ובדוחות.
-        if (record.mode === 'live') {
-          this.ctx.waitUntil(this.ctx.storage.put(`session:${record.id}`, record));
-          return { saved: true };
-        }
-        return { saved: false };
+        return { saved: this.archive(record) };
+      }
+
+      /*
+       * פתיחת פעילות חדשה ממסך הסיום.
+       *
+       * תרחיש שהגיע למסך הסיום נשאר 'ended' לתמיד, וכל מי שינסה להיכנס
+       * אחריו יקבל "הפעילות כבר החלה" — האפליקציה נראית שבורה בלי שדבר
+       * נשבר. כאן סוגרים את מה שהיה, שומרים אותו לדוחות, ופותחים לובי חדש
+       * בפעולה אחת.
+       */
+      case 'newSession': {
+        const record = e.endSession();
+        const saved = this.archive(record);
+        e.resetSession();
+        return { saved };
       }
       default: return undefined;
     }
+  }
+
+  /**
+   * שמירת פעילות שהסתיימה.
+   * רק פעילות אמיתית נשמרת: חזרה וסימולציה אינן מגיעות לאחסון ואינן
+   * מופיעות ברשימת ה־Sessions ובדוחות. פעילות שאיש לא הצטרף אליה גם
+   * אינה נשמרת — היא רק תלכלך את הרשימה.
+   */
+  archive(record) {
+    if (record.mode !== 'live' || record.participantCount === 0) return false;
+    this.ctx.waitUntil(this.ctx.storage.put(`session:${record.id}`, record));
+    return true;
   }
 
   // ─── API לדוחות ────────────────────────────────────────────────────────────

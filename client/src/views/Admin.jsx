@@ -171,6 +171,17 @@ const SIM_CONFIRM = (run) => ({
   run,
 });
 
+const NEW_SESSION = (testMode, run) => ({
+  title: testMode ? 'להתחיל מחדש?' : 'לפתוח פעילות חדשה?',
+  body: testMode
+    ? 'נתוני הדמה יימחקו ותיפתח ריצה חדשה.'
+    : 'הפעילות שהסתיימה תישמר לדוחות, ואז ייפתח לובי חדש עם אותו קוד. '
+      + 'המסכים של כל המשתתפים יחזרו למסך הכניסה.',
+  confirmLabel: testMode ? 'התחל מחדש' : 'פתח פעילות חדשה',
+  tone: 'primary',
+  run,
+});
+
 const SIM_STOP = (run) => ({
   title: 'לעצור את הסימולציה?',
   body: 'כל 20 משתתפי הדמה והתשובות שלהם יימחקו, והמסך יחזור לפעילות האמיתית.',
@@ -393,11 +404,17 @@ export default function Admin() {
             <p className="a-card-sum">
               {testMode
                 ? 'אלה נתוני דמה: הם אינם נשמרים ואינם מופיעים ברשימת הפעילויות. אפשר לפתוח את הדוח כדי לראות איך הוא ייראה.'
-                : 'ה־Session נשמר. אפשר לפתוח את הדוח ולהוריד אותו כ־PDF.'}
+                : 'אפשר לפתוח את הדוח ולהוריד אותו כ־PDF. כדי לרוץ שוב — פתח פעילות חדשה, '
+                  + 'והפעילות הזו תישמר לדוחות לפני שהלובי נפתח מחדש.'}
             </p>
-            <button className="btn btn-primary" onClick={openReport}>
-              {testMode ? 'פתח דוח לדוגמה' : 'פתח דוח פעילות'}
-            </button>
+            <div className="a-ended-actions">
+              <button className="btn btn-primary" onClick={() => setConfirm(NEW_SESSION(testMode, () => cmd('newSession')))}>
+                ▶  {testMode ? 'התחל מחדש' : 'פתח פעילות חדשה'}
+              </button>
+              <button className="btn" onClick={openReport}>
+                {testMode ? 'פתח דוח לדוגמה' : 'פתח דוח פעילות'}
+              </button>
+            </div>
           </section>
         )}
         {showTesting && !sim && (

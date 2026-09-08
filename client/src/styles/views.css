@@ -409,6 +409,7 @@
 .a-texts li.muted { color: var(--text-3); border-style: dashed; }
 
 .a-ended { padding: 22px; display: grid; gap: 10px; justify-items: start; }
+.a-ended-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 
 /* ─── בדיקות וחזרה ─────────────────────────────────────────────────────────
    שני מצבי הבדיקה יושבים באותו אזור ובאותו משקל ויזואלי, כדי שברור
