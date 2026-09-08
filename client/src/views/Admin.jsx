@@ -39,7 +39,7 @@ function Gate({ onOk }) {
 
 /* ─── אישור לפעולה מסוכנת ────────────────────────────────────────────────── */
 
-function Confirm({ open, title, body, confirmLabel, onConfirm, onCancel }) {
+function Confirm({ open, title, body, confirmLabel, tone = 'danger', onConfirm, onCancel }) {
   if (!open) return null;
   return (
     <div className="modal-veil" onClick={onCancel}>
@@ -49,12 +49,134 @@ function Confirm({ open, title, body, confirmLabel, onConfirm, onCancel }) {
         {body && <p className="modal-body">{body}</p>}
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>ביטול</button>
-          <button className="btn btn-danger" onClick={onConfirm}>{confirmLabel}</button>
+          <button className={`btn btn-${tone === 'danger' ? 'danger' : 'primary'}`} onClick={onConfirm}>
+            {confirmLabel}
+          </button>
         </div>
       </motion.div>
     </div>
   );
 }
+
+/* ─── בדיקות וחזרה ───────────────────────────────────────────────────────── */
+
+const SPEEDS = [
+  { ms: 3000, label: '3 שניות' },
+  { ms: 5000, label: '5 שניות' },
+  { ms: 10000, label: '10 שניות' },
+];
+
+/**
+ * הספירה לאחור עד הפעולה הבאה.
+ * השרת שולח את הזמן שנותר בכל שידור; כאן רק מורידים ממנו מקומית, כדי
+ * שהמספר יזוז כל שנייה בלי לשדר עשרות הודעות מיותרות לכל המכשירים.
+ */
+function Countdown({ msLeft, paused, done }) {
+  const [left, setLeft] = useState(msLeft);
+
+  useEffect(() => { setLeft(msLeft); }, [msLeft]);
+  useEffect(() => {
+    if (paused || done) return undefined;
+    const id = setInterval(() => setLeft((v) => Math.max(0, v - 250)), 250);
+    return () => clearInterval(id);
+  }, [paused, done, msLeft]);
+
+  if (done) return <span className="sim-count-done">הסתיימה</span>;
+  if (paused) return <span className="sim-count-done">מושהית</span>;
+  return <span className="sim-count tech">{Math.max(0, Math.ceil(left / 1000))}</span>;
+}
+
+/** אזור הבדיקות: חזרה ידנית וסימולציה מלאה זו לצד זו. */
+function TestingSection({ rehearsal, liveStarted, speed, onSpeed, onToggleRehearsal, onRunSim }) {
+  return (
+    <section className="a-test card">
+      <header className="a-test-head">
+        <h2 className="a-test-title">בדיקות וחזרה</h2>
+        <p className="a-test-sub">שני מצבים נפרדים. שניהם על נתוני דמה בלבד.</p>
+      </header>
+
+      <div className="a-test-grid">
+        <article className={`a-test-tile${rehearsal ? ' on' : ''}`}>
+          <div className="a-test-tile-title">חזרה ידנית</div>
+          <p className="a-test-tile-body">
+            אתה מתקדם, פותח וסוגר הצבעות וחושף תוצאות בעצמך, בדיוק כמו בפעילות.
+            עם ההתחלה נוצרים 20 משתתפי דמה שעונים לבד.
+          </p>
+          <button className="btn" onClick={onToggleRehearsal}>
+            {rehearsal ? 'צא ממצב חזרה' : 'עבור למצב חזרה'}
+          </button>
+        </article>
+
+        <article className="a-test-tile">
+          <div className="a-test-tile-title">סימולציה מלאה</div>
+          <p className="a-test-tile-body">
+            המערכת מריצה לבד את כל התרחיש מההתחלה ועד מסך הסיום, עם 20 משתתפי
+            דמה שמצביעים בהדרגה. אתה רק צופה.
+          </p>
+          <div className="a-test-speed">
+            <span className="a-test-speed-l">מהירות</span>
+            {SPEEDS.map((sp) => (
+              <button key={sp.ms} type="button"
+                className={`a-speed${speed === sp.ms ? ' on' : ''}`}
+                aria-pressed={speed === sp.ms}
+                onClick={() => onSpeed(sp.ms)}>{sp.label}</button>
+            ))}
+          </div>
+          <button className="btn btn-primary" onClick={onRunSim} disabled={liveStarted}>
+            ▶  הרץ סימולציה מלאה
+          </button>
+          {liveStarted && (
+            <p className="a-test-lock">
+              הפעילות האמיתית כבר התחילה. סימולציה תחליף את מה שרואים כל
+              המשתתפים — אפס את ה־Session כדי לאפשר אותה.
+            </p>
+          )}
+        </article>
+      </div>
+    </section>
+  );
+}
+
+/** שורת הבקרה שמחליפה את הכפתור הגדול בזמן סימולציה. */
+function SimBar({ sim, cmd, onStop }) {
+  return (
+    <div className="sim-bar">
+      <div className="sim-status">
+        <span className="sim-badge tech">SIMULATION MODE</span>
+        <span className="sim-step">שלב <b className="tech">{sim.step}</b> מתוך <b className="tech">{sim.steps}</b></span>
+        <span className="sim-next">
+          {sim.done ? 'הסימולציה הסתיימה' : 'הפעולה הבאה בעוד'}
+          {!sim.done && <Countdown msLeft={sim.msLeft} paused={sim.paused} done={sim.done} />}
+        </span>
+      </div>
+      <div className="sim-actions">
+        {!sim.done && (
+          <button className="btn sim-btn" onClick={() => cmd(sim.paused ? 'simResume' : 'simPause')}>
+            {sim.paused ? '▶  המשך' : '⏸  השהה'}
+          </button>
+        )}
+        {!sim.done && <button className="btn sim-btn" onClick={() => cmd('simSkip')}>⏭  דלג</button>}
+        <button className="btn btn-danger sim-btn" onClick={onStop}>■  עצור ונקה</button>
+      </div>
+    </div>
+  );
+}
+
+const SIM_CONFIRM = (run) => ({
+  title: 'להריץ סימולציה מלאה?',
+  body: 'הסימולציה משתמשת בנתוני דמה בלבד ולא משפיעה על הפעילות האמיתית. '
+    + 'התרחיש כולו ירוץ לבד מההתחלה ועד מסך הסיום, ובסיומה נתוני הדמה יימחקו.',
+  confirmLabel: 'התחל סימולציה',
+  tone: 'primary',
+  run,
+});
+
+const SIM_STOP = (run) => ({
+  title: 'לעצור את הסימולציה?',
+  body: 'כל 20 משתתפי הדמה והתשובות שלהם יימחקו, והמסך יחזור לפעילות האמיתית.',
+  confirmLabel: 'עצור ונקה',
+  run,
+});
 
 /* ─── ניהול ──────────────────────────────────────────────────────────────── */
 
@@ -63,6 +185,7 @@ export default function Admin() {
   const { state } = useServerState(authed ? 'admin' : null);
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [speed, setSpeed] = useState(5000);
 
   useEffect(() => {
     const token = readAdminToken();
@@ -84,6 +207,10 @@ export default function Admin() {
   if (!state) return <div className="live-boot">טוען…</div>;
 
   const rehearsal = state.mode === 'rehearsal';
+  const sim = state.simulation;
+  // אזור הבדיקות נעלם ברגע שהפעילות האמיתית רצה, כדי שאי אפשר יהיה
+  // למשוך עשרים טלפונים אל תוך תרחיש דמה באמצע יום הבטיחות.
+  const showTesting = !state.liveStarted || state.mode !== 'live';
   const q = state.question;
   const qOpen = q && q.status === 'open';
   const qClosed = q && q.status === 'closed';
@@ -104,6 +231,9 @@ export default function Admin() {
     window.open(`/report?key=${encodeURIComponent(key)}`, '_blank', 'noopener');
   };
 
+  // בסימולציה ובחזרה הניסוח חייב להיות של נתוני דמה, אחרת המנחה יקרא
+  // "כל המשתתפים והתשובות יימחקו" בזמן שהוא מסתכל על תרחיש בדיקה.
+  const testMode = rehearsal || !!sim;
   const dangerous = [
     {
       id: 'back', label: 'חזרה לשלב קודם', danger: true,
@@ -112,17 +242,17 @@ export default function Admin() {
       confirmLabel: 'חזור שלב אחורה', run: () => cmd('back'),
     },
     {
-      id: 'reset', label: rehearsal ? 'אפס חזרה' : 'אפס Session', danger: true,
-      title: rehearsal ? 'לאפס את החזרה?' : 'לאפס את ה־Session?',
-      body: rehearsal
-        ? 'כל נתוני החזרה יימחקו. נתוני הפעילות האמיתית אינם מושפעים.'
+      id: 'reset', label: testMode ? 'אפס נתוני בדיקה' : 'אפס Session', danger: true,
+      title: testMode ? 'לאפס את נתוני הבדיקה?' : 'לאפס את ה־Session?',
+      body: testMode
+        ? 'כל נתוני הדמה יימחקו. נתוני הפעילות האמיתית אינם מושפעים.'
         : 'כל המשתתפים והתשובות יימחקו ותיפתח פעילות חדשה עם קוד חדש.',
       confirmLabel: 'אפס', run: () => cmd('resetSession'),
     },
     {
       id: 'end', label: 'סיום פעילות', danger: true,
       title: 'לסיים את הפעילות?',
-      body: rehearsal ? 'החזרה תיסגר. נתוני חזרה אינם נשמרים.' : 'הפעילות תיסגר וה־Session יישמר לצפייה ולדוח.',
+      body: testMode ? 'הריצה תיסגר. נתוני דמה אינם נשמרים.' : 'הפעילות תיסגר וה־Session יישמר לצפייה ולדוח.',
       confirmLabel: 'סיים ושמור', run: () => cmd('endSession'),
     },
   ];
@@ -133,7 +263,9 @@ export default function Admin() {
       <header className="a-top">
         <div className="a-brand">
           <span className="a-mark tech">0→100</span>
-          <span className={`a-live tech${rehearsal ? ' reh' : ''}`}>{rehearsal ? 'REHEARSAL' : 'LIVE'}</span>
+          <span className={`a-live tech${sim ? ' sim' : rehearsal ? ' reh' : ''}`}>
+            {sim ? 'SIMULATION' : rehearsal ? 'REHEARSAL' : 'LIVE'}
+          </span>
         </div>
         <div className="a-meta">
           <span className="a-chip"><span className="dot-live" /><b className="tech">{state.connected}</b> מחוברים</span>
@@ -151,9 +283,6 @@ export default function Admin() {
             {menu && (
               <motion.div className="a-menu card" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}>
-                <button className="a-menu-item" onClick={() => { setMenu(false); cmd('setMode', { mode: rehearsal ? 'live' : 'rehearsal' }); }}>
-                  {rehearsal ? 'חזרה לפעילות אמיתית' : 'מצב חזרה'}
-                </button>
                 <button className="a-menu-item" onClick={() => { setMenu(false); openReport(); }}>דוח פעילות</button>
                 <div className="a-menu-sep" />
                 {dangerous.map((d) => (
@@ -260,23 +389,44 @@ export default function Admin() {
 
         {state.status === 'ended' && (
           <section className="a-ended card">
-            <h2 className="a-card-title">הפעילות הסתיימה</h2>
-            <p className="a-card-sum">ה־Session נשמר. אפשר לפתוח את הדוח ולהוריד אותו כ־PDF.</p>
-            <button className="btn btn-primary" onClick={openReport}>פתח דוח פעילות</button>
+            <h2 className="a-card-title">{testMode ? 'הריצה הסתיימה' : 'הפעילות הסתיימה'}</h2>
+            <p className="a-card-sum">
+              {testMode
+                ? 'אלה נתוני דמה: הם אינם נשמרים ואינם מופיעים ברשימת הפעילויות. אפשר לפתוח את הדוח כדי לראות איך הוא ייראה.'
+                : 'ה־Session נשמר. אפשר לפתוח את הדוח ולהוריד אותו כ־PDF.'}
+            </p>
+            <button className="btn btn-primary" onClick={openReport}>
+              {testMode ? 'פתח דוח לדוגמה' : 'פתח דוח פעילות'}
+            </button>
           </section>
         )}
+        {showTesting && !sim && (
+          <TestingSection
+            rehearsal={rehearsal}
+            liveStarted={state.liveStarted}
+            speed={speed}
+            onSpeed={setSpeed}
+            onToggleRehearsal={() => cmd('setMode', { mode: rehearsal ? 'live' : 'rehearsal' })}
+            onRunSim={() => setConfirm(SIM_CONFIRM(() => cmd('startSimulation', { speed })))}
+          />
+        )}
+
         <ParticipantPreview state={state.participantView} />
       </div>
 
       {/* ─── הכפתור הגדול ─── */}
-      <footer className="a-foot">
-        <button className="btn btn-primary a-go" onClick={primary.action} disabled={primary.disabled}>
-          {primary.label}
-        </button>
+      <footer className={`a-foot${sim ? ' sim' : ''}`}>
+        {sim ? (
+          <SimBar sim={sim} cmd={cmd} onStop={() => setConfirm(SIM_STOP(() => cmd('simStop')))} />
+        ) : (
+          <button className="btn btn-primary a-go" onClick={primary.action} disabled={primary.disabled}>
+            {primary.label}
+          </button>
+        )}
       </footer>
 
       <Confirm open={!!confirm} title={confirm?.title} body={confirm?.body}
-        confirmLabel={confirm?.confirmLabel}
+        confirmLabel={confirm?.confirmLabel} tone={confirm?.tone}
         onCancel={() => setConfirm(null)}
         onConfirm={() => { confirm.run(); setConfirm(null); }} />
     </div>

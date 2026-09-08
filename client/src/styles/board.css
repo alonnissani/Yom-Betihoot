@@ -1,6 +1,14 @@
 /* ═══ לוח התנועה ═══════════════════════════════════════════════════════════ */
 
+/*
+ * הלוח נמדד מול הרוחב שהוקצה לו, לא מול רוחב החלון.
+ * מדיה־קוורי שבר את תצוגת המשתתף שבתוך ה־Admin: המסגרת ברוחב טלפון,
+ * אבל החלון רחב — ולכן הלוח קיבל שם פריסת מסך גדול ונדחס. תצוגה שלא
+ * מראה את מה שיש בטלפון אינה שווה דבר, ובסימולציה היא כל העניין.
+ */
 .board {
+  container-type: inline-size;
+  container-name: board;
   position: relative;
   display: grid;
   grid-template-rows: auto auto 1fr;
@@ -44,8 +52,8 @@
   align-items: stretch;
   overflow: hidden;
 }
-@media (max-width: 420px) { .board-grid { --center-w: 64px; gap: 7px; padding: 8px 7px; } }
-@media (min-width: 1100px) {
+@container board (max-width: 420px) { .board-grid { --center-w: 64px; gap: 7px; padding: 8px 7px; } }
+@container board (min-width: 1100px) {
   .board-grid {
     --center-w: 190px;
     gap: 30px;
@@ -273,7 +281,7 @@
   min-height: 160px; overflow: hidden;
 }
 .runway-svg { width: 100%; height: 100%; max-height: 100%; }
-@media (min-width: 1100px) { .runway-svg { width: auto; height: 520px; max-height: none; } }
+@container board (min-width: 1100px) { .runway-svg { width: auto; height: 520px; max-height: none; } }
 .rw-label { font-family: var(--font-tech); font-weight: 600; letter-spacing: 0.1em; fill: var(--text-2); }
 .rw-tw-label { font-family: var(--font-tech); font-weight: 500; letter-spacing: 0.08em; fill: rgba(234, 241, 248, 0.42); }
 .rw-tw-label.active { fill: var(--gold); }
@@ -292,7 +300,7 @@
   padding: 8px 10px 0;
 }
 .overlay-stack:empty { display: none; }
-@media (min-width: 1100px) { .overlay-stack { padding: 12px 22px 0; align-items: center; } }
+@container board (min-width: 1100px) { .overlay-stack { padding: 12px 22px 0; align-items: center; } }
 
 .ov {
   border-radius: var(--r-md);
@@ -302,7 +310,7 @@
   padding: 10px 14px;
   width: 100%;
 }
-@media (min-width: 1100px) { .ov { max-width: 900px; } }
+@container board (min-width: 1100px) { .ov { max-width: 900px; } }
 
 .ov-phone { display: flex; align-items: center; gap: 12px; }
 .ov-phone-icon {
@@ -385,7 +393,7 @@
 
 /* ─── מסך הקרנה: טיפוגרפיה גדולה יותר לקריאה מרחוק ─────────────────────── */
 
-@media (min-width: 1100px) {
+@container board (min-width: 1100px) {
   .board-live .lane-head { font-size: 12.5px; }
   .board-live .strip { padding: 12px 15px 12px 16px; gap: 4px; }
   .board-live .strip-cs { font-size: 27px; }
@@ -419,7 +427,7 @@
 .cur.k-arr { --c: var(--arr); }
 .cur.k-dep { --c: var(--dep); }
 .cur.k-local { --c: var(--loc); }
-@media (min-width: 1100px) { .cur { max-width: 900px; } }
+@container board (min-width: 1100px) { .cur { max-width: 900px; } }
 
 .cur-tag {
   font-size: 10px;

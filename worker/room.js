@@ -201,10 +201,17 @@ export class SessionRoom extends DurableObject {
       case 'hideReveal': return e.hideQuestionReveal();
       case 'back': return e.back();
       case 'setMode': return e.setMode(payload?.mode);
+      case 'startSimulation': return e.startSimulation({ speed: payload?.speed });
+      case 'simPause': return e.pauseSimulation();
+      case 'simResume': return e.resumeSimulation();
+      case 'simSkip': return e.skipSimulation();
+      case 'simStop': return e.stopSimulation();
       case 'resetSession': return e.resetSession();
       case 'endSession': {
         const record = e.endSession();
-        if (record.mode !== 'rehearsal') {
+        // רק פעילות אמיתית נשמרת. חזרה וסימולציה אינן מגיעות לאחסון
+        // ואינן מופיעות ברשימת ה־Sessions ובדוחות.
+        if (record.mode === 'live') {
           this.ctx.waitUntil(this.ctx.storage.put(`session:${record.id}`, record));
           return { saved: true };
         }

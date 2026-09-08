@@ -9,7 +9,7 @@
     "build": "vite build",
     "start": "npm run build && wrangler dev --port 3000",
     "deploy": "npm run build && wrangler deploy",
-    "test": "node tests/engine.test.mjs && node tests/flow.test.mjs"
+    "test": "node tests/engine.test.mjs && node tests/flow.test.mjs && node tests/simulation.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.15.0",

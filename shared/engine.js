@@ -22,7 +22,7 @@ export function createSession(mode = 'live') {
   return {
     id: `${new Date().toISOString().slice(0, 10)}-${nid().slice(0, 6)}`,
     label: SESSION_LABEL,
-    mode,                       // 'live' | 'rehearsal'
+    mode,                       // 'live' | 'rehearsal' | 'simulation'
     code: JOIN_CODE,
     status: 'lobby',            // 'lobby' | 'running' | 'ended'
     cursor: -1,
@@ -91,9 +91,16 @@ function rebuildBoard(s, uptoCursor) {
 export class Engine {
   constructor(onChange) {
     this.onChange = onChange;
-    this.sessions = { live: createSession('live'), rehearsal: createSession('rehearsal') };
+    // שלושה מרחבים נפרדים לחלוטין. מעבר ביניהם אינו מערבב משתתפים,
+    // תשובות או תמונת תנועה — וזו כל ההגנה על נתוני האמת.
+    this.sessions = {
+      live: createSession('live'),
+      rehearsal: createSession('rehearsal'),
+      simulation: createSession('simulation'),
+    };
     this.active = 'live';
-    this.timers = { live: new Set(), rehearsal: new Set() };
+    this.timers = { live: new Set(), rehearsal: new Set(), simulation: new Set() };
+    this.sim = null;            // מצב הריצה האוטומטית; לעולם אינו נשמר
   }
 
   get s() { return this.sessions[this.active]; }
@@ -116,7 +123,10 @@ export class Engine {
   }
 
   setMode(mode) {
+    // אל מצב הסימולציה נכנסים רק דרך startSimulation, שמכין את הנתונים
+    // ואת מנוע הקצב. מעבר ידני היה מציב session ריק בלי מי שיריץ אותו.
     if (mode !== 'live' && mode !== 'rehearsal') return;
+    if (this.sim) this.stopSimulation();
     this.active = mode;
     this.changed();
   }
@@ -172,7 +182,7 @@ export class Engine {
     if (s.status !== 'lobby') return;
     s.status = 'running';
     s.startedAt = Date.now();
-    if (s.mode === 'rehearsal') this.spawnBots();
+    if (s.mode !== 'live') this.spawnBots();
     this.advance();
   }
 
@@ -229,6 +239,7 @@ export class Engine {
       q.status = 'open';
       q.openedAt = Date.now();
       if (s.mode === 'rehearsal') this.scheduleBotAnswers(item.questionId);
+      else if (s.mode === 'simulation') this.scheduleBotAnswers(item.questionId, this.sim?.speed || 5000);
     } else if (item.kind === 'reveal' || item.kind === 'closing') {
       s.reveal = item.reveal;
       if (item.kind === 'closing') s.status = 'ended';
@@ -306,11 +317,15 @@ export class Engine {
     const lastReveal = FLOW.slice(0, s.cursor + 1).filter((f) => f.reveal).pop();
     s.reveal = lastReveal ? lastReveal.reveal : null;
     if (s.status === 'ended') s.status = 'running';
+    // clearTimers הרגע הרג גם את קוצב הסימולציה; בלי זה הריצה נתקעת
+    if (this.sim && !this.sim.done) { this.sim.timer = null; this.simArm(); }
     this.changed();
   }
 
   resetSession({ keepParticipants = false } = {}) {
     const mode = this.active;
+    // אין "לאפס סימולציה": עוצרים אותה, וזה גם מוחק את נתוני הדמה.
+    if (mode === 'simulation') return this.stopSimulation();
     this.clearTimers(mode);
     const old = this.sessions[mode];
     const next = createSession(mode);
@@ -333,14 +348,26 @@ export class Engine {
     return this.exportRecord();
   }
 
-  /** מצב מלא לשחזור אחרי הפעלה מחדש של ה־Durable Object. */
+  /**
+   * מצב מלא לשחזור אחרי הפעלה מחדש של ה־Durable Object.
+   * הסימולציה נשארת בחוץ במכוון: נתוני דמה לא נכתבים לאחסון, ואם ה־DO
+   * מתחיל מחדש באמצע סימולציה — התמונה חוזרת לפעילות האמיתית.
+   */
   serialize() {
-    return { sessions: this.sessions, active: this.active };
+    const { live, rehearsal } = this.sessions;
+    return {
+      sessions: { live, rehearsal },
+      active: this.active === 'simulation' ? 'live' : this.active,
+    };
   }
 
   restore(snapshot) {
     if (!snapshot?.sessions?.live || !snapshot?.sessions?.rehearsal) return false;
-    this.sessions = snapshot.sessions;
+    this.sessions = {
+      live: snapshot.sessions.live,
+      rehearsal: snapshot.sessions.rehearsal,
+      simulation: createSession('simulation'),
+    };
     this.active = snapshot.active === 'rehearsal' ? 'rehearsal' : 'live';
     // טיימרים אינם שורדים הפעלה מחדש; שכבות זמניות מנוקות כדי לא להיתקע על המסך.
     for (const sess of Object.values(this.sessions)) {
@@ -352,53 +379,208 @@ export class Engine {
     return true;
   }
 
-  // ── חזרה: משתתפי דמה ───────────────────────────────────────────────────────
+  // ── משתתפי דמה (חזרה וסימולציה) ────────────────────────────────────────────
 
+  /**
+   * יוצר משתתפי דמה עם אופי אישי. לעולם לא בפעילות אמיתית.
+   * המסלול של כל בוט נקבע כאן פעם אחת ונשמר, כך שהתשובות שלו לאורך
+   * התרחיש מספרות סיפור אחד עקבי — ולא רעש מחודש בכל שאלה.
+   */
   spawnBots(n = 20) {
     const s = this.s;
-    if (s.mode !== 'rehearsal') return;
+    if (s.mode === 'live') return;
+    const kinds = archetypeList(n);
+    const texts = shuffled(BOT_TEXTS);
     for (let i = 0; i < n; i += 1) {
       const pid = `bot-${nid().slice(0, 8)}`;
+      const { curve, change } = makeProfile(kinds[i]);
       s.participants[pid] = {
         pid, joinedAt: Date.now(), lastSeen: Date.now(), connected: true, bot: true,
-        // פרופיל אישי: היכן העומס מתחיל לעלות ובאיזו עוצמה – יוצר מסלולים שונים.
         profile: {
-          base: 1 + Math.random() * 2,
-          knee: 1.5 + Math.random() * 3.5,     // השלב שבו מתחילה העלייה
-          slope: 0.9 + Math.random() * 1.6,
+          kind: kinds[i].id,
+          curve,                              // עומס 1–10 בכל אחד מששת השלבים
+          change,                             // השלב שבו הוא עצמו ירגיש את השינוי
+          text: texts[i % texts.length],      // תשובה אחת ויחידה לשאלה הפתוחה
         },
       };
     }
     this.changed();
   }
 
-  scheduleBotAnswers(qid) {
+  /**
+   * פורס את תשובות הבוטים על פני חלון הזמן.
+   * הפיזור הוא העיקר: המונה צריך לטפס 3/20 → 8/20 → 20/20 מול העיניים,
+   * כי כך זה נראה בחדר אמיתי — ולא לקפוץ לעשרים בבת אחת.
+   */
+  scheduleBotAnswers(qid, windowMs = 10500) {
     const s = this.s;
+    const mode = s.mode;
     const def = QUESTION_BY_ID[qid];
-    const stageIdx = def.stage ? STAGES.findIndex((x) => x.id === def.stage) + 1 : 6;
-    for (const p of Object.values(s.participants)) {
-      if (!p.bot) continue;
-      const delay = 1500 + Math.random() * 9000;
-      this.later('rehearsal', delay, () => {
-        const q = s.questions[qid];
-        if (!q || q.status !== 'open' || q.answers[p.pid] !== undefined) return;
-        q.answers[p.pid] = this.botAnswer(def, p, stageIdx);
+    const stageIdx = def.stage ? STAGES.findIndex((x) => x.id === def.stage) + 1 : STAGES.length;
+    const pending = Object.values(s.participants)
+      .filter((p) => p.bot && s.questions[qid].answers[p.pid] === undefined);
+
+    pending.forEach((p, i) => {
+      const slot = (i + 0.5) / pending.length;
+      const jitter = (Math.random() - 0.5) * windowMs * 0.08;
+      const delay = Math.max(120, windowMs * (0.12 + slot * 0.68) + jitter);
+      this.later(mode, delay, () => {
+        // טיימר שנותר מ־session קודם לא ייגע ב־session הפעיל
+        if (this.active !== mode) return;
+        this.submit({ pid: p.pid, qid, value: this.botAnswer(def, p, stageIdx) });
       });
-    }
+    });
   }
 
   botAnswer(def, p, stageIdx) {
-    const pr = p.profile;
-    if (def.kind === 'scale10') {
-      const jitter = (Math.random() - 0.5) * 1.4;
-      const raw = pr.base + Math.max(0, stageIdx - pr.knee) * pr.slope + jitter;
-      return clamp(Math.round(raw), 1, 10);
+    const pr = profileOf(p);
+    if (def.kind === 'scale10') return pr.curve[clamp(stageIdx, 1, pr.curve.length) - 1];
+    if (def.kind === 'timeline') return STAGES[clamp(pr.change, 1, STAGES.length) - 1].id;
+    return pr.text;
+  }
+
+  // ── סימולציה מלאה ──────────────────────────────────────────────────────────
+
+  /**
+   * מריצה את התרחיש כולו מקצה לקצה על נתוני דמה, כדי שהמנחה יוכל לשבת
+   * לבד לפני יום הבטיחות ולראות בדיוק את מה שמשתתף אמיתי יראה.
+   *
+   * הסימולציה רצה ב־session שלישי משלה: היא אינה נשמרת לאחסון, אינה
+   * נכנסת לדוחות השמורים, ואינה נוגעת במשתתפים או בתשובות של live
+   * ושל rehearsal. עצירה או יציאה מוחקות את כל נתוני הדמה.
+   */
+  startSimulation({ speed = 5000 } = {}) {
+    const ms = clamp(Number(speed) || 5000, 1000, 30000);
+    this.clearTimers('simulation');
+    this.sessions.simulation = createSession('simulation');
+    this.active = 'simulation';
+    this.sim = { speed: ms, paused: false, done: false, dueAt: 0, left: ms, timer: null };
+    this.start();                 // נועל את הלובי, יוצר 20 בוטים ומפעיל את הפריט הראשון
+    this.simArm();
+    this.changed();
+  }
+
+  /** קוצב הזמן עד הפעולה הבאה. dueAt מאפשר ללקוח לספור לאחור בעצמו. */
+  simArm(ms) {
+    const sim = this.sim;
+    if (!sim || sim.paused || sim.done) return;
+    const delay = ms === undefined ? sim.speed : ms;
+    sim.left = delay;
+    sim.dueAt = Date.now() + delay;
+    sim.timer = this.later('simulation', delay, () => this.simStep());
+  }
+
+  simClearPace() {
+    const sim = this.sim;
+    if (!sim?.timer) return;
+    clearTimeout(sim.timer);
+    this.timers.simulation.delete(sim.timer);
+    sim.timer = null;
+  }
+
+  /**
+   * פעולה אחת בכל פעימה, באותו סדר שבו מנחה אנושי היה לוחץ:
+   * להציג התפתחות, לפתוח הצבעה, לסגור, לחשוף, להמשיך.
+   */
+  simStep() {
+    const sim = this.sim;
+    if (!sim || sim.done) return;
+    if (this.active !== 'simulation') return this.stopSimulation();
+    const s = this.sessions.simulation;
+
+    if (s.activeQuestion) {
+      const q = s.questions[s.activeQuestion];
+      if (q.status === 'open') this.closeQuestion();
+      // חשיפה אוטומטית קיימת אך ורק כאן. בפעילות אמיתית רק המנחה חושף.
+      else if (q.status === 'closed') this.revealQuestion();
+      else this.advance();
+    } else if (s.status === 'ended') {
+      return this.simFinish();
+    } else {
+      this.advance();
     }
-    if (def.kind === 'timeline') {
-      const idx = clamp(Math.round(pr.knee + (Math.random() - 0.4) * 2), 1, 6);
-      return STAGES[idx - 1].id;
+
+    if (s.status === 'ended' && !s.activeQuestion) return this.simFinish();
+    this.simArm();
+    return undefined;
+  }
+
+  /** סוף התרחיש. הנתונים נשארים על המסך עד שהמנחה יוצא — ואז נמחקים. */
+  simFinish() {
+    const sim = this.sim;
+    if (!sim) return;
+    this.simClearPace();
+    sim.done = true;
+    sim.paused = false;
+    sim.dueAt = 0;
+    sim.left = 0;
+    this.changed();
+  }
+
+  pauseSimulation() {
+    const sim = this.sim;
+    if (!sim || sim.paused || sim.done) return;
+    sim.left = Math.max(0, sim.dueAt - Date.now());
+    sim.paused = true;
+    // עוצרים גם את תשובות הבוטים שבדרך: "מושהה" שבו המונה ממשיך לזוז
+    // הוא לא מושהה.
+    this.clearTimers('simulation');
+    sim.timer = null;
+    this.changed();
+  }
+
+  resumeSimulation() {
+    const sim = this.sim;
+    if (!sim || !sim.paused || sim.done) return;
+    sim.paused = false;
+    const s = this.sessions.simulation;
+    const left = Math.max(400, sim.left || sim.speed);
+    const qid = s.activeQuestion;
+    if (qid && s.questions[qid].status === 'open') this.scheduleBotAnswers(qid, left);
+    this.simArm(left);
+    this.changed();
+  }
+
+  /** דילוג לפעולה הבאה. הצבעה פתוחה נסגרת מלאה, לא חתוכה באמצע. */
+  skipSimulation() {
+    const sim = this.sim;
+    if (!sim || sim.done) return;
+    this.simClearPace();
+    const s = this.sessions.simulation;
+    const qid = s.activeQuestion;
+    if (qid && s.questions[qid].status === 'open') {
+      const def = QUESTION_BY_ID[qid];
+      const stageIdx = def.stage ? STAGES.findIndex((x) => x.id === def.stage) + 1 : STAGES.length;
+      for (const p of Object.values(s.participants)) {
+        if (!p.bot || s.questions[qid].answers[p.pid] !== undefined) continue;
+        this.submit({ pid: p.pid, qid, value: this.botAnswer(def, p, stageIdx) });
+      }
     }
-    return REHEARSAL_TEXTS[Math.floor(Math.random() * REHEARSAL_TEXTS.length)];
+    this.simStep();
+  }
+
+  /** עצירה ומחיקה. אחריה לא נשאר זכר לנתוני הדמה בשום מקום. */
+  stopSimulation() {
+    this.clearTimers('simulation');
+    this.sim = null;
+    this.sessions.simulation = createSession('simulation');
+    if (this.active === 'simulation') this.active = 'live';
+    this.changed();
+  }
+
+  simView() {
+    const sim = this.sim;
+    if (!sim) return null;
+    const s = this.sessions.simulation;
+    return {
+      speed: sim.speed,
+      paused: sim.paused,
+      done: sim.done,
+      step: clamp(s.cursor + 1, 1, FLOW.length),
+      steps: FLOW.length,
+      msLeft: sim.paused ? sim.left : (sim.dueAt ? Math.max(0, sim.dueAt - Date.now()) : 0),
+      bots: Object.keys(s.participants).length,
+    };
   }
 
   // ── ייצוא ──────────────────────────────────────────────────────────────────
@@ -545,6 +727,10 @@ export class Engine {
       counts: s.activeQuestion ? this.counts(s.activeQuestion) : null,
       stats: s.activeQuestion ? this.stats(s.activeQuestion) : null,
       stages: STAGES,
+      // הפעילות האמיתית כבר רצה — אזור הבדיקות נסגר כדי שלא ימשוך
+      // עשרים טלפונים אל תוך תרחיש דמה באמצע יום הבטיחות.
+      liveStarted: this.sessions.live.status !== 'lobby',
+      simulation: this.simView(),
       participantView: this.viewFor('preview'),
     };
   }
@@ -560,19 +746,124 @@ function pick(item) {
 
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-const REHEARSAL_TEXTS = [
+function rand([lo, hi]) { return lo + Math.random() * (hi - lo); }
+
+function shuffled(list) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * ארכיטיפים של עומס למשתתפי דמה.
+ *
+ * הגרלה אחידה מייצרת עשרים קווים שנראים כמו רעש סביב אותו ממוצע — בדיוק
+ * ההפך ממה שהפעילות מנסה להראות. כאן לכל בוט יש אופי: מתי העומס מתחיל
+ * לעלות אצלו (knee), באיזו תלילות (slope), כמה הוא נסחף עם התמונה גם
+ * בלי אירוע (drift), וכמה ה־MAYDAY מזיז אותו (surge).
+ *
+ * count הוא החלק היחסי מתוך עשרים: רוב הקבוצה עולה בהדרגה, מיעוט עולה
+ * מוקדם, מיעוט נשאר רגוע עד השלבים האחרונים.
+ */
+const LOAD_ARCHETYPES = [
+  { id: 'calm', count: 3, base: [1.0, 2.0], knee: [4.6, 5.6], slope: [1.0, 1.6], drift: [0.25, 0.45], surge: [1.5, 3.0] },
+  { id: 'early', count: 4, base: [2.0, 3.2], knee: [1.2, 2.2], slope: [0.9, 1.4], drift: [0.25, 0.45], surge: [0.8, 2.0] },
+  { id: 'gradual', count: 9, base: [1.5, 3.0], knee: [2.4, 3.8], slope: [1.0, 1.6], drift: [0.25, 0.50], surge: [1.0, 2.5] },
+  { id: 'late', count: 4, base: [1.0, 2.2], knee: [4.0, 5.0], slope: [2.0, 2.8], drift: [0.15, 0.35], surge: [2.0, 3.5] },
+];
+
+const GRADUAL = LOAD_ARCHETYPES.find((a) => a.id === 'gradual');
+
+/** מחלק n בוטים בין הארכיטיפים לפי המשקלות, ומערבב כדי שהסדר לא ילמד דבר. */
+function archetypeList(n) {
+  const total = LOAD_ARCHETYPES.reduce((sum, a) => sum + a.count, 0);
+  const out = [];
+  for (const a of LOAD_ARCHETYPES) {
+    const k = Math.max(1, Math.round((a.count / total) * n));
+    for (let i = 0; i < k; i += 1) out.push(a);
+  }
+  while (out.length > n) out.pop();
+  while (out.length < n) out.push(GRADUAL);
+  return shuffled(out);
+}
+
+/**
+ * המסלול האישי: העומס בכל אחד מששת השלבים, ולצדו השלב שבו האדם עצמו
+ * יגיד "כאן זה השתנה מבחינתי".
+ *
+ * נקודת השינוי נגזרת מה־knee — השלב שבו הקו שלו מתחיל לעלות — ולא
+ * מסף מוחלט. סף מוחלט היה מרכז כמעט את כולם ב־MAYDAY, שם ממילא כולם
+ * גבוהים, ומוחק בדיוק את מה שהפעילות באה להראות: שאנשים שונים מגיעים
+ * ל־100 בנקודות שונות.
+ */
+function makeProfile(archetype) {
+  const a = archetype || GRADUAL;
+  const base = rand(a.base);
+  const knee = rand(a.knee);
+  const slope = rand(a.slope);
+  const drift = rand(a.drift);
+  const surge = rand(a.surge);
+  const last = STAGES.length;
+
+  const curve = STAGES.map((_, i) => {
+    const k = i + 1;
+    const raw = base
+      + drift * (k - 1)
+      + Math.max(0, k - knee) * slope
+      + (k === last ? surge : 0)
+      + (Math.random() - 0.5) * 1.1;
+    return clamp(Math.round(raw), 1, 10);
+  });
+
+  // מיעוט זוכר את האירוע הדרמטי ולא את הרגע שבו באמת התחיל לעלות
+  const change = Math.random() < 0.12 ? last : clamp(Math.round(knee + 0.5), 1, last);
+  return { curve, change };
+}
+
+/** בוטים משחזורי snapshot ישנים יכולים להגיע בלי מסלול; נבנה להם אחד. */
+function profileOf(p) {
+  if (!p.profile?.curve) {
+    p.profile = {
+      kind: 'gradual',
+      ...makeProfile(GRADUAL),
+      text: BOT_TEXTS[Math.floor(Math.random() * BOT_TEXTS.length)],
+    };
+  }
+  return p.profile;
+}
+
+/**
+ * תשובות דמה לשאלה הפתוחה. עשרים ומעלה, כדי שכל בוט יקבל משפט משלו
+ * וקיר התשובות ייראה כמו קיר של עשרים אנשים.
+ */
+const BOT_TEXTS = [
+  'אני מתחיל לדבר מהר יותר',
+  'יותר מדי דברים נשארים לי בראש',
+  'אני מפסיק להסתכל קדימה',
+  'אני מרגיש שאני מגיב במקום לתכנן',
+  'אני מתחיל לפספס פרטים קטנים',
   'כשאני מתחיל לתעדף מי מדבר ראשון במקום לענות לכולם',
   'כשאני מפסיק להסתכל על התמונה הגדולה ורק סוגר את מה שמולי',
-  'כשאני מרגיש שאני מגיב במקום להוביל',
   'כשאני צריך לחזור על הקראה כי לא זכרתי מה אמרתי',
   'כשהידיים מסמנות סטריפים מהר יותר מהראש',
   'כשאני דוחה שיחת טלפון כי אין לי רגע פנוי',
   'כשאני מפסיק לתכנן קדימה שתי תנועות',
   'כשאני מגלה שאני לא זוכר איפה נמצאת תנועה שכבר טיפלתי בה',
-  'כשאני מדבר מהר יותר בקשר',
   'כשכל מה שנכנס מרגיש דחוף באותה מידה',
   'כשאני מתחיל לכתוב לעצמי דברים שבדרך כלל אני זוכר',
   'כשאני מרגיש שאני לא רוצה שאף אחד יקרא לי עכשיו',
+  'כשאני עונה לפני שסיימתי לשמוע את כל ההודעה',
+  'כשאני מפסיק לשתות ולהסתכל בשעון',
+  'כשאני מרגיש את הכתפיים עולות בלי ששמתי לב',
+  'כשאני מבקש חזרה על משהו בפעם השנייה באותה דקה',
+  'כשאני סופר כמה זמן נשאר למשמרת',
+  'כשאני מדבר בלי לחשוב על הניסוח',
+  'כשאני מרגיש שהתמונה בראש שלי מתחילה להיטשטש',
+  'כשאני מפסיק לשים לב למה שקורה בצד השני של המסלול',
+  'כשאני מוצא את עצמי מחזיק את הנשימה',
 ];
 
 export { FLOW, STAGES, QUESTIONS, LOAD_TRACK };

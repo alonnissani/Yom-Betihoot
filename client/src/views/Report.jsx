@@ -118,7 +118,11 @@ export default function Report() {
       <div className="r-toolbar no-print">
         <button className="btn btn-primary" onClick={() => window.print()}>הורד PDF / הדפס</button>
         <button className="btn" onClick={download}>הורד נתונים (JSON)</button>
-        {data.mode === 'rehearsal' && <span className="r-badge-reh">נתוני חזרה — לא פעילות אמיתית</span>}
+        {data.mode !== 'live' && (
+          <span className="r-badge-reh">
+            {data.mode === 'simulation' ? 'נתוני סימולציה — לא פעילות אמיתית' : 'נתוני חזרה — לא פעילות אמיתית'}
+          </span>
+        )}
       </div>
 
       <article className="r-page">
