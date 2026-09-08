@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Distribution, TimelineReveal } from '../components/Charts.jsx';
 import ParticipantPreview from '../components/ParticipantPreview.jsx';
-import { useServerState, emit, readAdminToken, clearAdminToken } from '../lib/socket.js';
+import { useServerState, useElapsed, emit, readAdminToken, clearAdminToken } from '../lib/socket.js';
+import { ConnectionCard } from '../components/Connection.jsx';
 import { ACTIVITY_TITLE, STAGES } from '@shared/scenario.js';
 
 const KEY_STORE = 'z2h.adminKey';
@@ -197,6 +198,7 @@ export default function Admin() {
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [speed, setSpeed] = useState(5000);
+  const waited = useElapsed(4000);
 
   useEffect(() => {
     const token = readAdminToken();
@@ -215,7 +217,7 @@ export default function Admin() {
   const cmd = useCallback((type, payload) => emit('admin:cmd', { type, payload }), []);
 
   if (!authed) return <Gate onOk={() => setAuthed(true)} />;
-  if (!state) return <div className="live-boot">טוען…</div>;
+  if (!state) return waited ? <ConnectionCard title="מסך הניהול אינו מחובר" /> : <div className="live-boot">טוען…</div>;
 
   const rehearsal = state.mode === 'rehearsal';
   const sim = state.simulation;

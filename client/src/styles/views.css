@@ -12,11 +12,38 @@
 
 .conn-bar {
   position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
   background: rgba(255, 196, 107, 0.16);
   border-bottom: 1px solid rgba(255, 196, 107, 0.4);
-  color: #FFDCA8; font-size: 12.5px; text-align: center; padding: 5px 12px;
+  color: #FFDCA8; font-size: 12.5px; text-align: center;
+  padding: calc(5px + var(--safe-t)) 12px 5px;
   backdrop-filter: blur(8px);
 }
+.conn-retry {
+  flex: none;
+  background: rgba(255, 196, 107, 0.16);
+  border: 1px solid rgba(255, 196, 107, 0.5);
+  border-radius: 999px;
+  color: #FFE8C4; font-size: 12px; font-weight: 600;
+  padding: 4px 12px; cursor: pointer;
+}
+.conn-retry:hover:not(:disabled) { background: rgba(255, 196, 107, 0.28); }
+.conn-retry:disabled { opacity: 0.55; cursor: default; }
+.conn-retry:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* כשאין מה להציג בלי השרת — הודעה מלאה במקום המתנה בלי סוף */
+.conn-card {
+  min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(42, 78, 134, 0.16), transparent 60%),
+    var(--navy-950);
+}
+.conn-card-inner {
+  width: min(440px, 100%); padding: 26px;
+  display: grid; gap: 12px; justify-items: start; text-align: start;
+}
+.conn-card-title { font-size: 20px; font-weight: 700; }
+.conn-card-body { font-size: 14px; line-height: 1.6; color: var(--text-2); }
 
 /* ─── Bottom sheet ────────────────────────────────────────────────────────── */
 

@@ -2,7 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import TowerScene from '../components/TowerScene.jsx';
 import Board from '../components/Board.jsx';
 import { TimelineReveal, TrajectoryChart, Distribution, AnswerWall } from '../components/Charts.jsx';
-import { useServerState } from '../lib/socket.js';
+import { useServerState, useElapsed } from '../lib/socket.js';
+import { ConnectionCard } from '../components/Connection.jsx';
 import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY } from '@shared/scenario.js';
 
 /* ─── לובי ───────────────────────────────────────────────────────────────── */
@@ -73,8 +74,11 @@ function VotingPanel({ counts, closed, title }) {
 
 export default function Live() {
   const { state } = useServerState('live');
+  const waited = useElapsed(4000);
 
-  if (!state) return <div className="live-boot">מתחבר…</div>;
+  // מסך ההקרנה אינו יכול להציג דבר בלי השרת, אבל הוא גם לא צריך להישאר
+  // תקוע על "מתחבר…" בלי סוף — במיוחד כשהוא פתוח על מקרן מול חדר מלא.
+  if (!state) return waited ? <ConnectionCard title="מסך ההקרנה אינו מחובר" /> : <div className="live-boot">מתחבר…</div>;
   if (state.status === 'lobby') return <Lobby code={state.code} connected={state.connected} />;
 
   const q = state.question;

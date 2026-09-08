@@ -44,6 +44,7 @@ class Connection {
     this.statusHandlers = new Set();
     this.hello = null;
     this.retry = 0;
+    this.everConnected = false;      // האם הצלחנו להתחבר ולו פעם אחת
     this.closed = false;
     this.connect();
     // חיבור שנרדם ברקע בטלפון מתעורר מיד עם החזרה למסך
@@ -64,6 +65,7 @@ class Connection {
 
     ws.onopen = () => {
       this.retry = 0;
+      this.everConnected = true;
       this.emitStatus(true);
       if (this.hello) this.send({ t: 'hello', ...this.hello });
       // בקשות שנוצרו בזמן טעינת הדף נשלחות ברגע שהחיבור קם
@@ -108,6 +110,22 @@ class Connection {
 
   emitStatus(up) { for (const h of this.statusHandlers) h(up); }
 
+  /**
+   * ניסיון חיבור מיידי, לבקשת המשתמש.
+   * ה־backoff מגיע עד חמש שניות, ומי שלוחץ "נסה שוב" מצפה לתשובה עכשיו
+   * ולא בעוד חמש שניות. הסוקט שתקוע ב־CONNECTING נסגר תחילה, אחרת
+   * connect() היה מוותר ומחזיר את המשתמש לאותה המתנה.
+   */
+  retryNow() {
+    clearTimeout(this.retryTimer);
+    this.retry = 0;
+    if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+      try { this.ws.close(); } catch { /* ignore */ }
+      this.ws = null;
+    }
+    this.connect();
+  }
+
   setHello(payload) {
     this.hello = payload;
     if (this.ws?.readyState === WebSocket.OPEN) this.send({ t: 'hello', ...payload });
@@ -140,6 +158,24 @@ class Connection {
 }
 
 export const connection = new Connection();
+
+/**
+ * ממתין ל־ms ואז מחזיר true.
+ * מאפשר להבדיל בין "עוד רגע יגיע חיבור" לבין "אין חיבור" — בלי להשאיר
+ * את המשתמש מול שלוש נקודות בלי סוף.
+ */
+export function useElapsed(ms) {
+  const [passed, setPassed] = useState(false);
+  useEffect(() => {
+    setPassed(false);
+    const t = setTimeout(() => setPassed(true), ms);
+    return () => clearTimeout(t);
+  }, [ms]);
+  return passed;
+}
+
+/** ניסיון חיבור מיידי לבקשת המשתמש. */
+export function retryConnection() { connection.retryNow(); }
 
 /** מנוי על מצב השרת עבור תפקיד מסוים. */
 export function useServerState(role, helloPayload = {}) {

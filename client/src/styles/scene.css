@@ -62,6 +62,9 @@
 
 /* ─── תוכן מסך הכניסה ─────────────────────────────────────────────────────── */
 
+/* פס התקשורת יושב מעל התוכן; כשהוא מוצג, הכותרת יורדת מתחתיו */
+.entry.offline .entry-top { padding-block-start: calc(64px + var(--safe-t)); }
+
 .entry-top {
   padding: calc(26px + var(--safe-t)) 24px 0;
   text-align: center;

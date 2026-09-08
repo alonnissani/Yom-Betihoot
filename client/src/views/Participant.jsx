@@ -4,7 +4,8 @@ import TowerScene from '../components/TowerScene.jsx';
 import Board from '../components/Board.jsx';
 import QuestionSheet from '../components/Question.jsx';
 import RevealPanel, { hasReveal } from '../components/Reveal.jsx';
-import { useServerState, emit, readToken, writeToken, clearToken, writeAdminToken } from '../lib/socket.js';
+import { useServerState, useElapsed, emit, readToken, writeToken, clearToken, writeAdminToken } from '../lib/socket.js';
+import { ConnectionBar } from '../components/Connection.jsx';
 import { ACTIVITY_TITLE, EVENT_TITLE, STAGES, REVEAL_COPY, JOIN_CODE } from '@shared/scenario.js';
 
 /** קוד ספרתי -> מקלדת מספרים בטלפון. נגזר מהקוד עצמו כדי שיישאר נכון אם ישתנה. */
@@ -21,8 +22,8 @@ const JOIN_ERRORS = {
 
 function EntryShell({ children, disconnected = false }) {
   return (
-    <div className="entry">
-      {disconnected && <div className="conn-bar">אין חיבור — מתחברים מחדש…</div>}
+    <div className={`entry${disconnected ? ' offline' : ''}`}>
+      {disconnected && <ConnectionBar />}
       <TowerScene />
       <header className="entry-top">
         <div className="entry-event">{EVENT_TITLE}</div>
@@ -176,7 +177,7 @@ export function ParticipantStage({ state, onSubmit, readOnly = false, disconnect
 
   return (
     <div className="p-shell">
-      {disconnected && <div className="conn-bar">אין חיבור — מתחברים מחדש…</div>}
+      {disconnected && <ConnectionBar />}
       <div className="p-board">
         <Board board={state.board} stageNumber={state.stageNumber} stageCount={state.stageCount}
           stageTitle={stage?.title} variant="participant" tight={!!showSheet} />
@@ -225,11 +226,22 @@ export default function Participant() {
     return res;
   }, []);
 
-  if (!state) {
+  // מסך הכניסה אינו תלוי בשרת.
+  //
+  // עד כה הוא חיכה למצב הראשון מה־WebSocket, ולכן ברשת שחוסמת חיבורים
+  // מתמשכים האפליקציה נראתה כאילו אינה נפתחת כלל: לוגו, שלוש נקודות,
+  // ושום דרך להמשיך. עכשיו ממתינים רק רגע קצר — מספיק כדי שחיבור תקין
+  // לא יבהב את מסך הכניסה למי שכבר בפעילות — ואז מציגים אותו בכל מקרה,
+  // עם חיווי תקשורת ברור.
+  const waitedForServer = useElapsed(token ? 3000 : 1200);
+
+  if (!state && !waitedForServer) {
     return <EntryShell><div className="waiting"><div className="waiting-dots"><i /><i /><i /></div></div></EntryShell>;
   }
 
-  if (!state.joined) return <EntryShell disconnected={!connected}><EntryGate onJoin={join} /></EntryShell>;
+  if (!state || !state.joined) {
+    return <EntryShell disconnected={!connected}><EntryGate onJoin={join} /></EntryShell>;
+  }
   if (state.status === 'lobby') {
     return (
       <EntryShell disconnected={!connected}>
