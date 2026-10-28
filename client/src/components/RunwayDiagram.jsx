@@ -1,7 +1,8 @@
 /**
  * איור סכמטי של מסלול 01/19 ברמון — עמוד השדרה של לוח התנועה.
- * המסלול מצויר אנכית (01 בצפון) כדי שחציית הקורמורנים מצפון לדרום
- * תיקרא נכון על גבי האיור.
+ *
+ * האיור מסודר לפי חץ הצפון שלצדו: הצפון למטה במסך. לכן 01 מסומן בתחתית
+ * ו־19 למעלה, וחציית הקורמורנים מצפון לדרום עולה על המסך מלמטה למעלה.
  */
 
 const BIRDS = [
@@ -43,8 +44,8 @@ export default function RunwayDiagram({ active = [], birds = false }) {
           {[23, 28.3, 33.6, 38.9].map((x) => <rect key={`t${x}`} x={x} y="52" width="2.6" height="12" />)}
           {[23, 28.3, 33.6, 38.9].map((x) => <rect key={`b${x}`} x={x} y="356" width="2.6" height="12" />)}
         </g>
-        <text className="rw-label" x="33" y="40" fontSize="15" textAnchor="middle">01</text>
-        <text className="rw-label" x="33" y="392" fontSize="15" textAnchor="middle">19</text>
+        <text className="rw-label" x="33" y="40" fontSize="15" textAnchor="middle">19</text>
+        <text className="rw-label" x="33" y="392" fontSize="15" textAnchor="middle">01</text>
 
         {/* מקושרות + מסלול הסעה מקביל A */}
         <line x1="56" y1="92" x2="56" y2="338" stroke="var(--line-strong)" strokeWidth="1.4" strokeLinecap="round" />
